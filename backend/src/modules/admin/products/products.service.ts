@@ -62,6 +62,23 @@ export async function createProduct(storeSlug: string, data: {
   if (!category || category.storeId !== storeId) {
     throw new AppError(403, 'Category does not belong to this store')
   }
+
+  const [subscription, productCount] = await Promise.all([
+    prisma.subscription.findFirst({
+      where: { storeId },
+      include: { package: true },
+    }),
+    prisma.product.count({ where: { storeId } }),
+  ])
+
+  if (!subscription) {
+    throw new AppError(400, 'Store has no active subscription')
+  }
+
+  if (productCount >= subscription.package.maxProducts) {
+    throw new AppError(403, `Product limit (${subscription.package.maxProducts}) exceeded for your subscription`)
+  }
+
   logger.info({ storeSlug, title: data.title }, 'Creating product')
   return prisma.product.create({
     data: { ...data, storeId },
