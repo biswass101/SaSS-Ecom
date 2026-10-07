@@ -5,6 +5,7 @@ import { logger } from '../../../lib/logger'
 async function resolveStoreId(storeSlug: string): Promise<string> {
   const store = await prisma.store.findUnique({ where: { slug: storeSlug } })
   if (!store) throw new AppError(404, 'Store not found')
+  if (store.status !== 'ACTIVE') throw new AppError(403, 'Store is inactive')
   return store.id
 }
 

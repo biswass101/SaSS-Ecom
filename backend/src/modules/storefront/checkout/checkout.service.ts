@@ -53,7 +53,7 @@ export async function placeOrder(
       })
     }
 
-    return tx.order.create({
+    const createdOrder = await tx.order.create({
       data: {
         storeId: store.id,
         orderNumber,
@@ -68,9 +68,11 @@ export async function placeOrder(
       },
       include: { items: true },
     })
+
+    return createdOrder
   })
 
-  logger.info({ orderId: order.id, orderNumber }, 'Order placed successfully')
+  logger.info({ orderId: order.id, orderNumber: order.orderNumber }, 'Order placed successfully')
   return order
 }
 

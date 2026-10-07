@@ -67,7 +67,6 @@ publicRouter.get(
 
 publicRouter.post(
   '/payments',
-  authLimiter,
   validate(submitPaymentSchema),
   asyncHandler(async (req, res) => {
     const payment = await service.submitPayment(req.body)
