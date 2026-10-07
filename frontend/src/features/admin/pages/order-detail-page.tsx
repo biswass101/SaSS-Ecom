@@ -43,6 +43,11 @@ export default function OrderDetailPage() {
     enabled: Boolean(storeSlug && orderId),
   })
 
+  // Get store name from slug (you can also fetch from API if needed)
+  const storeName = storeSlug
+    ? storeSlug.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+    : 'Store'
+
   const handlePrintInvoice = () => {
     if (!invoiceRef.current) return
 
@@ -229,14 +234,88 @@ export default function OrderDetailPage() {
       {/* Invoice Template (hidden, used for printing) */}
       <div className="hidden">
         <div ref={invoiceRef}>
-          <InvoiceTemplate order={order} />
+          <InvoiceTemplate order={order} storeName={storeName} />
         </div>
       </div>
 
-      {/* Order Details Grid */}
+      {/* Order Details Grid - 2 Column Layout */}
       <div className="grid gap-6 lg:grid-cols-3">
+        {/* Main Content - Items (spans 2 columns on desktop) */}
+        <div className="space-y-6 lg:col-span-2">
+          {/* Order Items */}
+          <div className="rounded-xl border bg-card shadow-soft">
+            <div className="border-b px-6 py-4">
+              <h2 className="font-display text-lg font-semibold">
+                Order Items
+              </h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      Product
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      Qty
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      Unit Price
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      Total
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {order.items.map((item) => (
+                    <tr
+                      key={item.id}
+                      className="border-b last:border-0"
+                    >
+                      <td className="px-6 py-4 text-sm font-medium">
+                        {item.productTitle}
+                      </td>
+                      <td className="px-6 py-4 text-right text-sm text-muted-foreground">
+                        {item.quantity}
+                      </td>
+                      <td className="px-6 py-4 text-right text-sm text-muted-foreground">
+                        {formatCurrency(item.productPrice)}
+                      </td>
+                      <td className="px-6 py-4 text-right text-sm font-medium">
+                        {formatCurrency(item.total)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-        {/* Sidebar */}
+            {/* Order summary */}
+            <div className="border-t px-6 py-4">
+              <div className="ml-auto max-w-xs space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Subtotal</span>
+                  <span className="font-medium">
+                    {formatCurrency(order.subtotal)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Shipping</span>
+                  <span className="text-success font-medium">Free</span>
+                </div>
+                <div className="flex justify-between border-t pt-2">
+                  <span className="font-semibold">Total</span>
+                  <span className="text-lg font-bold">
+                    {formatCurrency(order.total)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Sidebar - Right Column */}
         <div className="space-y-6">
           {/* Customer details */}
           <div className="rounded-xl border bg-card p-6 shadow-soft">
