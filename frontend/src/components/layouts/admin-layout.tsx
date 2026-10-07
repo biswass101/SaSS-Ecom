@@ -45,7 +45,6 @@ export default function AdminLayout() {
   const setSidebarOpen = useUiStore((s) => s.setSidebarOpen)
   const [dropdownOpen, setDropdownOpen] = useState(false)
 
-  // Fetch subscription status to check if store is active and payment is verified
   const { data: storeStatus, isLoading: storeLoading } = useQuery({
     queryKey: ['admin', storeSlug, 'store-status'],
     queryFn: () => storefrontService.getSubscriptionStatus(storeSlug),
@@ -55,8 +54,6 @@ export default function AdminLayout() {
   const isStoreActive = storeStatus?.storeStatus === 'ACTIVE'
   const isPaymentVerified = storeStatus?.isPaid
   const paymentStatus = storeStatus?.paymentStatus
-
-  // If store is inactive, show permission denied (with payment reason if applicable)
   if (!storeLoading && storeStatus && storeStatus.storeStatus !== 'ACTIVE') {
     const isPendingPayment = storeStatus.paymentStatus === 'PENDING'
     const isNoPayment = storeStatus.paymentStatus === 'N/A' || storeStatus.paymentStatus === undefined
@@ -129,7 +126,6 @@ export default function AdminLayout() {
 
   // If payment not verified, show waiting message or payment required
   if (!storeLoading && storeStatus && !isPaymentVerified) {
-    // Payment already submitted - show waiting message
     if (paymentStatus === 'PENDING') {
       return (
         <div className="flex h-screen items-center justify-center bg-background">
@@ -151,7 +147,6 @@ export default function AdminLayout() {
       )
     }
 
-    // No payment submitted (N/A or undefined status) - show payment required
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="text-center">
