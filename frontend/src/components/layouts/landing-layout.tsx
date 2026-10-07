@@ -27,7 +27,10 @@ export default function LandingLayout() {
   const { pathname } = useLocation()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const user = useAuthStore((s) => s.user)
+  const store = useAuthStore((s) => s.store)
   const handleLogout = useLogout()
+
+  const storeDashboardLink = store?.slug ? `/${store.slug}/admin` : '/'
 
   return (
     <div className="min-h-screen">
@@ -86,7 +89,7 @@ export default function LandingLayout() {
                       )}
                       {user?.role === 'STORE_ADMIN' && (
                         <Link
-                          to={useAuthStore((s) => s.store?.slug ? `/${s.store.slug}/admin` : '/')}
+                          to={storeDashboardLink}
                           onClick={() => setDropdownOpen(false)}
                           className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground hover:bg-muted"
                         >
@@ -171,7 +174,7 @@ export default function LandingLayout() {
                     )}
                     {user?.role === 'STORE_ADMIN' && (
                       <Link
-                        to={useAuthStore((s) => s.store?.slug ? `/${s.store.slug}/admin` : '/')}
+                        to={storeDashboardLink}
                         onClick={() => setMenuOpen(false)}
                         className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground hover:bg-muted"
                       >
