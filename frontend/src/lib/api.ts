@@ -28,8 +28,11 @@ api.interceptors.response.use(
   (error) => {
     if (axios.isAxiosError(error)) {
       if (error.response?.status === 401) {
-        localStorage.removeItem('auth-storage')
-        window.location.href = '/login'
+        const path = window.location.pathname
+        if (path !== '/login' && path !== '/create-store' && path !== '/payment') {
+          localStorage.removeItem('auth-storage')
+          window.location.href = '/login'
+        }
       }
       const apiError: ApiError = {
         message:

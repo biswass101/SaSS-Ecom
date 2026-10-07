@@ -81,6 +81,11 @@ export async function deleteProduct(storeSlug: string, id: string) {
   const storeId = await resolveStoreId(storeSlug)
   const product = await prisma.product.findUnique({ where: { id, storeId } })
   if (!product) throw new AppError(404, 'Product not found')
+  const orderItems = await prisma.orderItem.count({ where: { productId: id } })
+  if (orderItems > 0) {
+    logger.info({ id }, 'Deactivating product with existing orders')
+    return prisma.product.update({ where: { id }, data: { isActive: false } })
+  }
   logger.info({ id }, 'Deleting product')
   return prisma.product.delete({ where: { id } })
 }

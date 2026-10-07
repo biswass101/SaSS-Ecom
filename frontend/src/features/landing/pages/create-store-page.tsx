@@ -105,7 +105,8 @@ export default function CreateStorePage() {
     setIsSubmitting(true)
     try {
       const result = await authService.createStore(data)
-      login(result.token, result.user)
+      const storeData = result.store ? { id: result.store.id, slug: result.store.slug, name: result.store.name } : null
+      login(result.token, result.user, storeData)
       toast.success('Store created successfully! Redirecting to payment...')
       navigate(`/payment?subscriptionId=${result.store.subscription?.id ?? ''}`)
     } catch {

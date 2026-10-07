@@ -7,6 +7,7 @@ import type { LoginFormValues, RegisterFormValues } from './schemas'
 interface AuthResponse {
   token: string
   user: User
+  store?: { id: string; slug: string; name: string } | null
 }
 
 export const authApi = {

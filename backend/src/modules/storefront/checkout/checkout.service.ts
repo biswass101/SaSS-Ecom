@@ -19,53 +19,56 @@ export async function placeOrder(
 
   logger.info({ storeSlug, itemCount: data.items.length }, 'Placing order')
 
-  const products = await prisma.product.findMany({
-    where: { id: { in: data.items.map((i) => i.productId) } },
-  })
-
-  const productMap = new Map(products.map((p) => [p.id, p]))
-
-  const orderItems = data.items.map((item) => {
-    const product = productMap.get(item.productId)
-    if (!product) throw new AppError(400, `Product ${item.productId} not found`)
-    if (product.stock < item.quantity) throw new AppError(400, `Insufficient stock for ${product.title}`)
-    return {
-      productId: product.id,
-      productTitle: product.title,
-      productPrice: product.price,
-      quantity: item.quantity,
-      total: product.price * item.quantity,
-    }
-  })
-
-  const subtotal = orderItems.reduce((sum, i) => sum + i.total, 0)
-
-  const count = await prisma.order.count({ where: { storeId: store.id } })
-  const prefix = store.slug.substring(0, 3).toUpperCase()
-  const orderNumber = `${prefix}-${(count + 1001).toString()}`
-
-  const order = await prisma.order.create({
-    data: {
-      storeId: store.id,
-      orderNumber,
-      customerName: data.customerName,
-      customerEmail: data.customerEmail,
-      customerPhone: data.customerPhone,
-      shippingAddress: data.shippingAddress,
-      notes: data.notes,
-      subtotal: Math.round(subtotal * 100) / 100,
-      total: Math.round(subtotal * 100) / 100,
-      items: { create: orderItems },
-    },
-    include: { items: true },
-  })
-
-  for (const item of data.items) {
-    await prisma.product.update({
-      where: { id: item.productId },
-      data: { stock: { decrement: item.quantity } },
+  const order = await prisma.$transaction(async (tx) => {
+    const products = await tx.product.findMany({
+      where: { id: { in: data.items.map((i) => i.productId) }, storeId: store.id },
     })
-  }
+
+    const productMap = new Map(products.map((p) => [p.id, p]))
+
+    const orderItems = data.items.map((item) => {
+      const product = productMap.get(item.productId)
+      if (!product) throw new AppError(400, `Product ${item.productId} not found`)
+      if (product.stock < item.quantity) throw new AppError(400, `Insufficient stock for ${product.title}`)
+      return {
+        productId: product.id,
+        productTitle: product.title,
+        productPrice: product.price,
+        quantity: item.quantity,
+        total: product.price * item.quantity,
+      }
+    })
+
+    const subtotal = orderItems.reduce((sum, i) => sum + i.total, 0)
+
+    const count = await tx.order.count({ where: { storeId: store.id } })
+    const prefix = store.slug.substring(0, 3).toUpperCase()
+    const timestamp = Date.now().toString(36).toUpperCase()
+    const orderNumber = `${prefix}-${(count + 1001).toString()}-${timestamp}`
+
+    for (const item of data.items) {
+      await tx.product.update({
+        where: { id: item.productId },
+        data: { stock: { decrement: item.quantity } },
+      })
+    }
+
+    return tx.order.create({
+      data: {
+        storeId: store.id,
+        orderNumber,
+        customerName: data.customerName,
+        customerEmail: data.customerEmail,
+        customerPhone: data.customerPhone,
+        shippingAddress: data.shippingAddress,
+        notes: data.notes,
+        subtotal: Math.round(subtotal * 100) / 100,
+        total: Math.round(subtotal * 100) / 100,
+        items: { create: orderItems },
+      },
+      include: { items: true },
+    })
+  })
 
   logger.info({ orderId: order.id, orderNumber }, 'Order placed successfully')
   return order

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAuthStore } from '@/stores/auth-store'
-import { authService } from '@/lib/api-services'
+import { authService, storefrontService } from '@/lib/api-services'
 import { useState } from 'react'
 
 const storeLoginSchema = z.object({
@@ -48,6 +48,14 @@ export default function StoreLoginPage() {
       const store = result.store ? { id: result.store.id, slug: result.store.slug, name: result.store.name } : null
       login(result.token, result.user, store)
       toast.success('Welcome back!')
+      try {
+        const status = await storefrontService.getSubscriptionStatus(data.storeSlug)
+        if (!status.isPaid) {
+          navigate(`/payment?subscriptionId=${status.subscriptionId}`)
+          toast.info('Please complete your payment to access the dashboard')
+          return
+        }
+      } catch { /* proceed to dashboard if check fails */ }
       navigate(`/${data.storeSlug}/admin`)
     } catch {
       toast.error('Unable to sign in', { description: 'Check your store slug, email, and password.' })

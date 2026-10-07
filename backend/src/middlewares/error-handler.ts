@@ -1,5 +1,6 @@
 import type { ErrorRequestHandler } from 'express'
 import { ZodError } from 'zod'
+import { Prisma } from '@prisma/client'
 import { logger } from '../lib/logger'
 
 export class AppError extends Error {
@@ -29,6 +30,21 @@ export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
       errors: flat.fieldErrors,
     })
     return
+  }
+
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === 'P2002') {
+      res.status(409).json({ message: 'A record with this value already exists', statusCode: 409 })
+      return
+    }
+    if (error.code === 'P2003') {
+      res.status(400).json({ message: 'Cannot complete this action due to related records', statusCode: 400 })
+      return
+    }
+    if (error.code === 'P2025') {
+      res.status(404).json({ message: 'Record not found', statusCode: 404 })
+      return
+    }
   }
 
   logger.error(error)

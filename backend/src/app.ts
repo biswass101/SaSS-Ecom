@@ -31,13 +31,15 @@ export const app = express()
 
 app.use(helmet())
 const configuredOrigins = env.CORS_ORIGIN.split(',').map((origin) => origin.trim()).filter(Boolean)
-const allowedOrigins = new Set([
-	...configuredOrigins,
+const devOrigins = env.NODE_ENV === 'production' ? [] : [
 	'http://localhost:5173',
 	'http://localhost:5174',
+	'http://localhost:5175',
 	'http://127.0.0.1:5173',
 	'http://127.0.0.1:5174',
-])
+	'http://127.0.0.1:5175',
+]
+const allowedOrigins = new Set([...configuredOrigins, ...devOrigins])
 
 app.use(cors({
 	origin: (origin, callback) => {

@@ -1,5 +1,6 @@
 import type {
   BillingCycle,
+  OrderPaymentStatus,
   OrderStatus,
   PaymentStatus,
   StoreStatus,
@@ -121,7 +122,7 @@ export interface Order {
   subtotal: number
   total: number
   status: OrderStatus
-  paymentStatus: PaymentStatus
+  paymentStatus: OrderPaymentStatus
   notes: string | null
   createdAt: string
   updatedAt: string

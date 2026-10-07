@@ -35,6 +35,8 @@ export async function updatePackage(id: string, data: Record<string, unknown>) {
 
 export async function deletePackage(id: string) {
   await getPackageById(id)
+  const activeSubscriptions = await prisma.subscription.count({ where: { packageId: id } })
+  if (activeSubscriptions > 0) throw new AppError(400, 'Cannot delete package with existing subscriptions')
   logger.info({ id }, 'Deleting package')
   return prisma.package.delete({ where: { id } })
 }

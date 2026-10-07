@@ -406,20 +406,6 @@ export default function StorefrontLayout() {
           <Home className="size-5" />
           <span className="text-[10px] font-medium">Home</span>
         </Link>
-        <Link
-          to={`/${storeSlug}`}
-          className="flex flex-col items-center gap-0.5 text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <Search className="size-5" />
-          <span className="text-[10px] font-medium">Search</span>
-        </Link>
-        <Link
-          to={`/${storeSlug}`}
-          className="flex flex-col items-center gap-0.5 text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <Heart className="size-5" />
-          <span className="text-[10px] font-medium">Wishlist</span>
-        </Link>
         <button
           type="button"
           onClick={() => setCartDrawerOpen(true)}
@@ -434,7 +420,7 @@ export default function StorefrontLayout() {
           <span className="text-[10px] font-medium">Cart</span>
         </button>
         <Link
-          to={`/${storeSlug}/admin`}
+          to="/login"
           className="flex flex-col items-center gap-0.5 text-muted-foreground transition-colors hover:text-foreground"
         >
           <User className="size-5" />

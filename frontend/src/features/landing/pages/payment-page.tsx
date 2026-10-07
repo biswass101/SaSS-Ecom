@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import {
   Banknote,
   Building2,
+  Check,
   CreditCard,
   Loader2,
   Smartphone,
@@ -9,7 +10,7 @@ import {
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useQuery } from '@tanstack/react-query'
-import { useSearchParams } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
@@ -33,9 +34,11 @@ const channelIcons: Record<string, typeof Building2> = {
 
 export default function PaymentPage() {
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   const subscriptionId = searchParams.get('subscriptionId') ?? ''
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null)
+  const [paymentSubmitted, setPaymentSubmitted] = useState(false)
 
   const { data: channels = [], isLoading: isChannelsLoading } = useQuery({
     queryKey: ['public', 'payment-channels'],
@@ -67,14 +70,38 @@ export default function PaymentPage() {
     setIsSubmitting(true)
     try {
       await publicService.submitPayment({ subscriptionId, accountNo: data.accountNo, transactionId: data.transactionId, amount: Number(data.amount) })
-      toast.success('Payment submitted for verification')
-      reset()
-      setSelectedChannel(null)
+      toast.success('Payment submitted! Awaiting admin verification.')
+      setPaymentSubmitted(true)
     } catch {
       toast.error('Unable to submit payment', { description: 'Please verify the transaction details and try again.' })
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  if (paymentSubmitted) {
+    return (
+      <div className="flex min-h-[calc(100vh-12rem)] items-center justify-center py-16">
+        <div className="mx-auto max-w-md px-4 text-center">
+          <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+            <Check className="size-8 text-green-600" />
+          </div>
+          <h1 className="mt-6 font-display text-2xl font-bold">Payment Submitted!</h1>
+          <p className="mt-3 text-muted-foreground">
+            Your payment has been submitted and is awaiting verification by the admin.
+            You will have full access to your store dashboard once the payment is verified.
+          </p>
+          <div className="mt-8 flex flex-col gap-3">
+            <Button onClick={() => navigate('/')}>
+              Go to Home Page
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/login')}>
+              Sign In
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

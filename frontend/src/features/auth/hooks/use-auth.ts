@@ -12,7 +12,7 @@ export function useLogin() {
 
   return useMutation({
     mutationFn: (data: LoginFormValues) => authApi.login(data),
-    onSuccess: async (res: any) => {
+    onSuccess: async (res) => {
       // Handle both regular login and store login responses
       const store = res.store ? { id: res.store.id, slug: res.store.slug, name: res.store.name } : null
       login(res.token, res.user, store)
@@ -38,6 +38,9 @@ export function useLogin() {
           console.error('Failed to check payment status:', error)
           navigate(`/${store.slug}/admin`)
         }
+      } else if (res.user.role === 'STORE_ADMIN' && !store?.slug) {
+        navigate('/create-store')
+        toast.info('Create your store to get started')
       } else {
         navigate('/')
       }
@@ -55,7 +58,8 @@ export function useRegister() {
       return authApi.register(rest)
     },
     onSuccess: (res) => {
-      login(res.token, res.user)
+      const store = res.store ? { id: res.store.id, slug: res.store.slug, name: res.store.name } : null
+      login(res.token, res.user, store)
       toast.success('Account created successfully!')
       navigate('/create-store')
     },

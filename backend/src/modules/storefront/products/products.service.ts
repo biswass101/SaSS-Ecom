@@ -5,6 +5,7 @@ import { logger } from '../../../lib/logger'
 export async function getPublicProducts(storeSlug: string, params: { categoryId?: string; search?: string; page?: number; limit?: number }) {
   const store = await prisma.store.findUnique({ where: { slug: storeSlug } })
   if (!store) throw new AppError(404, 'Store not found')
+  if (store.status !== 'ACTIVE') throw new AppError(403, 'Store is not active')
 
   const page = params.page ?? 1
   const limit = params.limit ?? 20
@@ -33,6 +34,7 @@ export async function getPublicProducts(storeSlug: string, params: { categoryId?
 export async function getPublicProductById(storeSlug: string, id: string) {
   const store = await prisma.store.findUnique({ where: { slug: storeSlug } })
   if (!store) throw new AppError(404, 'Store not found')
+  if (store.status !== 'ACTIVE') throw new AppError(403, 'Store is not active')
   const product = await prisma.product.findUnique({
     where: { id, storeId: store.id },
     include: { category: true },

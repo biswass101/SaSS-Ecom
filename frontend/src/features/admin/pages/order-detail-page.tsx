@@ -160,7 +160,7 @@ export default function OrderDetailPage() {
 
   const currentOrder = order
   const nextStatus = getNextStatus(currentOrder.status)
-  const paymentStatus: PaymentStatus = (order as any).paymentStatus || 'PENDING'
+  const paymentStatus: PaymentStatus = currentOrder.paymentStatus || 'PENDING'
 
   async function handleStatusUpdate() {
     if (!nextStatus) return

@@ -43,14 +43,14 @@ export default function AdminLayout() {
   const setSidebarOpen = useUiStore((s) => s.setSidebarOpen)
   const [dropdownOpen, setDropdownOpen] = useState(false)
 
-  // Fetch store to check if it's active
-  const { data: store, isLoading: storeLoading } = useQuery({
+  // Fetch subscription status to check if store is active (doesn't throw on inactive)
+  const { data: storeStatus, isLoading: storeLoading } = useQuery({
     queryKey: ['admin', storeSlug, 'store-status'],
-    queryFn: () => storefrontService.getStore(storeSlug),
+    queryFn: () => storefrontService.getSubscriptionStatus(storeSlug),
     enabled: Boolean(storeSlug),
   })
 
-  const isStoreActive = store?.status === 'ACTIVE'
+  const isStoreActive = storeStatus?.storeStatus === 'ACTIVE'
 
   const navLinks = getNavLinks(storeSlug)
 
@@ -213,11 +213,7 @@ export default function AdminLayout() {
         )}
 
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
-          {/* Disabled overlay for inactive store */}
-          {!storeLoading && !isStoreActive && (
-            <div className="fixed inset-0 z-30 bg-black/30 flex items-center justify-center pointer-events-none" />
-          )}
-          <div className={cn(!isStoreActive && 'opacity-50 pointer-events-none')}>
+          <div className={cn(!storeLoading && !isStoreActive && 'opacity-50 pointer-events-none select-none')}>
             <Outlet />
           </div>
         </main>

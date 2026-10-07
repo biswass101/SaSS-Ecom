@@ -49,7 +49,7 @@ export default function PaymentVerificationPage() {
               storeName: sub.store?.name ?? 'Unknown',
               storeSlug: sub.store?.slug ?? 'unknown',
               packageName: sub.package?.name ?? 'Unknown',
-              amount: sub.package?.price ?? 0,
+              amount: payment.amount ?? sub.package?.price ?? 0,
               status: payment.status,
               createdAt: payment.createdAt,
               paymentId: payment.id,

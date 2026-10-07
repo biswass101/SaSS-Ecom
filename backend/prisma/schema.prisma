@@ -78,7 +78,7 @@ model Store {
   slug         String      @unique
   description  String?     @db.Text
   logoUrl      String?
-  status       StoreStatus @default(ACTIVE)
+  status       StoreStatus @default(INACTIVE)
   ownerId      String
   owner        User        @relation(fields: [ownerId], references: [id])
   subscription Subscription?
