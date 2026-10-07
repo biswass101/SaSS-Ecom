@@ -86,7 +86,7 @@ export default function LandingLayout() {
                       )}
                       {user?.role === 'STORE_ADMIN' && (
                         <Link
-                          to="/create-store"
+                          to="/stores-dashboard"
                           onClick={() => setDropdownOpen(false)}
                           className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground hover:bg-muted"
                         >
@@ -171,7 +171,7 @@ export default function LandingLayout() {
                     )}
                     {user?.role === 'STORE_ADMIN' && (
                       <Link
-                        to="/create-store"
+                        to="/stores-dashboard"
                         onClick={() => setMenuOpen(false)}
                         className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground hover:bg-muted"
                       >
