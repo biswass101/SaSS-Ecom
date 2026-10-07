@@ -63,25 +63,70 @@ export default function HomePage() {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
-  const [showLogoutModal, setShowLogoutModal] = useState(false)
+  const logout = useAuthStore((s) => s.logout)
+  const [showModal, setShowModal] = useState(false)
+  const [modalType, setModalType] = useState<'store-owner' | 'management'>('store-owner')
 
   const handleGetStarted = () => {
     if (!isAuthenticated) {
       // Not logged in - go to create store
       navigate('/create-store')
     } else if (user?.role === 'STORE_ADMIN') {
-      // Store owner - go to create another store or dashboard
-      navigate('/create-store')
+      // Store owner - already has a store, cannot create another
+      setModalType('store-owner')
+      setShowModal(true)
     } else if (user?.role === 'SUPER_ADMIN') {
-      // Management - show modal
-      setShowLogoutModal(true)
+      // Management - show modal asking to sign out
+      setModalType('management')
+      setShowModal(true)
     }
+  }
+
+  const handleSignOut = () => {
+    logout()
+    setShowModal(false)
+    navigate('/create-store')
   }
 
   return (
     <div>
-      {/* Logout Modal */}
-      {showLogoutModal && (
+      {/* Modal - Store Owner Already Has Store */}
+      {showModal && modalType === 'store-owner' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="mx-4 w-full max-w-sm rounded-xl border bg-background p-6 shadow-lg">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="rounded-lg bg-primary/10 p-2">
+                <Store className="size-5 text-primary" />
+              </div>
+              <h3 className="text-lg font-semibold">Store Already Created</h3>
+            </div>
+            <p className="text-sm text-muted-foreground mb-6">
+              Your account already has a store. Each user can only manage one store. You can access your store from "My Stores" in your profile menu or by navigating directly to your storefront.
+            </p>
+            <div className="flex flex-col gap-3">
+              <Button
+                onClick={() => {
+                  setShowModal(false)
+                  navigate('/stores-dashboard')
+                }}
+                className="w-full"
+              >
+                Go to My Stores
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowModal(false)}
+                className="w-full"
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal - Management User Sign Out Required */}
+      {showModal && modalType === 'management' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="mx-4 w-full max-w-sm rounded-xl border bg-background p-6 shadow-lg">
             <div className="flex items-center gap-3 mb-4">
@@ -95,17 +140,14 @@ export default function HomePage() {
             </p>
             <div className="flex flex-col gap-3">
               <Button
-                onClick={() => {
-                  setShowLogoutModal(false)
-                  navigate('/login')
-                }}
+                onClick={handleSignOut}
                 className="w-full"
               >
                 Sign Out & Create New Store
               </Button>
               <Button
                 variant="outline"
-                onClick={() => setShowLogoutModal(false)}
+                onClick={() => setShowModal(false)}
                 className="w-full"
               >
                 Cancel
