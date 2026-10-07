@@ -23,6 +23,7 @@ const navLinks = [
   { href: '/management', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/management/packages', label: 'Packages', icon: Package },
   { href: '/management/subscriptions', label: 'Subscriptions', icon: Receipt },
+  { href: '/management/payment-verification', label: 'Verify Payments', icon: CreditCard },
   { href: '/management/stores', label: 'Stores', icon: Store },
   { href: '/management/payment-channels', label: 'Payment Channels', icon: CreditCard },
 ]

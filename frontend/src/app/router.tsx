@@ -73,6 +73,10 @@ export const router = createBrowserRouter([
             element: lazyPage(() => import('@/features/management/pages/subscriptions-page')),
           },
           {
+            path: 'payment-verification',
+            element: lazyPage(() => import('@/features/management/pages/payment-verification-page')),
+          },
+          {
             path: 'stores',
             element: lazyPage(() => import('@/features/management/pages/stores-page')),
           },

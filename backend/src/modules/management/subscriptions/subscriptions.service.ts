@@ -41,11 +41,27 @@ export async function updateSubscription(id: string, data: { status?: string; pa
 }
 
 export async function verifyPayment(paymentId: string, action: 'VERIFIED' | 'REJECTED') {
-  const payment = await prisma.payment.findUnique({ where: { id: paymentId } })
+  const payment = await prisma.payment.findUnique({
+    where: { id: paymentId },
+    include: { subscription: { include: { store: true } } },
+  })
   if (!payment) throw new AppError(404, 'Payment not found')
+
   logger.info({ paymentId, action }, 'Verifying payment')
-  return prisma.payment.update({
+
+  const updatedPayment = await prisma.payment.update({
     where: { id: paymentId },
     data: { status: action, verifiedAt: action === 'VERIFIED' ? new Date() : null },
   })
+
+  // If payment is verified and store is inactive, activate it
+  if (action === 'VERIFIED' && payment.subscription?.store?.status === 'INACTIVE') {
+    await prisma.store.update({
+      where: { id: payment.subscription.store.id },
+      data: { status: 'ACTIVE' },
+    })
+    logger.info({ storeId: payment.subscription.store.id }, 'Store activated after payment verification')
+  }
+
+  return updatedPayment
 }
