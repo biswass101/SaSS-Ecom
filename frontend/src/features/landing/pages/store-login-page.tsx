@@ -45,7 +45,8 @@ export default function StoreLoginPage() {
     setIsSubmitting(true)
     try {
       const result = await authService.storeLogin(data)
-      login(result.token, result.user)
+      const store = result.store ? { id: result.store.id, slug: result.store.slug, name: result.store.name } : null
+      login(result.token, result.user, store)
       toast.success('Welcome back!')
       navigate(`/${data.storeSlug}/admin`)
     } catch {
