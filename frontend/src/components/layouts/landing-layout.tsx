@@ -4,6 +4,9 @@ import {
   LogIn,
   Menu,
   X,
+  LogOut,
+  BarChart2,
+  LayoutDashboard,
 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router'
@@ -11,6 +14,7 @@ import { Logo } from '@/components/shared/logo'
 import { ThemeToggle } from '@/components/shared/theme-toggle'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
+import { useLogout } from '@/features/auth/hooks/use-auth'
 
 const navLinks = [
   { href: '/', label: 'Home' },
@@ -19,9 +23,11 @@ const navLinks = [
 
 export default function LandingLayout() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
   const { pathname } = useLocation()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const user = useAuthStore((s) => s.user)
+  const handleLogout = useLogout()
 
   return (
     <div className="min-h-screen">
@@ -55,11 +61,53 @@ export default function LandingLayout() {
               <div className="relative">
                 <button
                   type="button"
+                  onClick={() => setDropdownOpen(!dropdownOpen)}
                   className="flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted"
                 >
                   {user?.name ?? 'Account'}
-                  <ChevronDown className="size-3.5" />
+                  <ChevronDown className={cn("size-3.5 transition-transform", dropdownOpen && "rotate-180")} />
                 </button>
+                {dropdownOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setDropdownOpen(false)}
+                    />
+                    <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-lg border bg-popover p-1 shadow-lg">
+                      {user?.role === 'SUPER_ADMIN' && (
+                        <Link
+                          to="/management"
+                          onClick={() => setDropdownOpen(false)}
+                          className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground hover:bg-muted"
+                        >
+                          <BarChart2 className="size-4" />
+                          Management
+                        </Link>
+                      )}
+                      {user?.role === 'STORE_ADMIN' && (
+                        <Link
+                          to="/create-store"
+                          onClick={() => setDropdownOpen(false)}
+                          className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground hover:bg-muted"
+                        >
+                          <LayoutDashboard className="size-4" />
+                          My Stores
+                        </Link>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleLogout()
+                          setDropdownOpen(false)
+                        }}
+                        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-destructive hover:bg-muted"
+                      >
+                        <LogOut className="size-4" />
+                        Sign out
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             ) : (
               <>
@@ -108,6 +156,43 @@ export default function LandingLayout() {
                   {link.label}
                 </Link>
               ))}
+              {isAuthenticated && (
+                <>
+                  <div className="border-t pt-3 mt-3">
+                    {user?.role === 'SUPER_ADMIN' && (
+                      <Link
+                        to="/management"
+                        onClick={() => setMenuOpen(false)}
+                        className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground hover:bg-muted"
+                      >
+                        <BarChart2 className="size-4" />
+                        Management
+                      </Link>
+                    )}
+                    {user?.role === 'STORE_ADMIN' && (
+                      <Link
+                        to="/create-store"
+                        onClick={() => setMenuOpen(false)}
+                        className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground hover:bg-muted"
+                      >
+                        <LayoutDashboard className="size-4" />
+                        My Stores
+                      </Link>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleLogout()
+                        setMenuOpen(false)
+                      }}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-destructive hover:bg-muted"
+                    >
+                      <LogOut className="size-4" />
+                      Sign out
+                    </button>
+                  </div>
+                </>
+              )}
               {!isAuthenticated && (
                 <Link
                   to="/login"
