@@ -7,7 +7,7 @@ import {
   Loader2,
   Smartphone,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router'
@@ -17,12 +17,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
-import { publicService } from '@/lib/api-services'
+import { useAuthStore } from '@/stores/auth-store'
+import { publicService, managementService } from '@/lib/api-services'
 
 const paymentSchema = z.object({
   accountNo: z.string().min(1, 'Account number is required'),
   transactionId: z.string().min(1, 'Transaction ID is required'),
-  amount: z.string().min(1, 'Amount is required'),
 })
 
 type PaymentFormValues = z.infer<typeof paymentSchema>
@@ -39,12 +39,44 @@ export default function PaymentPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null)
   const [paymentSubmitted, setPaymentSubmitted] = useState(false)
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const user = useAuthStore((s) => s.user)
+
+  // Redirect if not authenticated or wrong role
+  useEffect(() => {
+    if (!isAuthenticated || user?.role !== 'STORE_ADMIN') {
+      navigate('/login', { replace: true })
+    }
+  }, [isAuthenticated, user, navigate])
+
+  // Redirect if already paid
+  const { data: subscriptions = [] } = useQuery({
+    queryKey: ['management', 'subscriptions'],
+    queryFn: managementService.getSubscriptions,
+  })
+
+  const subscription = subscriptions.find((s) => s.id === subscriptionId)
+
+  useEffect(() => {
+    if (subscription && subscription.payments?.[0]?.status === 'VERIFIED') {
+      // Already paid - redirect to dashboard
+      navigate(`/${user?.store?.slug}/admin`, { replace: true })
+    }
+  }, [subscription, user?.store?.slug, navigate])
 
   const { data: channels = [], isLoading: isChannelsLoading } = useQuery({
     queryKey: ['public', 'payment-channels'],
     queryFn: publicService.getPaymentChannels,
   })
   const activeChannels = channels.filter((ch) => ch.isActive)
+
+  const { data: packages = [], isLoading: isPackagesLoading } = useQuery({
+    queryKey: ['public', 'packages'],
+    queryFn: publicService.getPackages,
+  })
+
+  const [selectedPackage, setSelectedPackage] = useState<string>('')
+  const selectedPackageData = packages.find((p) => p.id === selectedPackage)
 
   const form = useForm<PaymentFormValues>({
     resolver: zodResolver(paymentSchema),
@@ -67,9 +99,13 @@ export default function PaymentPage() {
       toast.error('Missing subscription', { description: 'Return to store creation and choose a plan first.' })
       return
     }
+    if (!selectedPackageData?.price) {
+      toast.error('Please select a package', { description: 'Choose a package to continue.' })
+      return
+    }
     setIsSubmitting(true)
     try {
-      await publicService.submitPayment({ subscriptionId, accountNo: data.accountNo, transactionId: data.transactionId, amount: Number(data.amount) })
+      await publicService.submitPayment({ subscriptionId, accountNo: data.accountNo, transactionId: data.transactionId, amount: selectedPackageData.price })
       toast.success('Payment submitted! Awaiting admin verification.')
       setPaymentSubmitted(true)
     } catch {
@@ -171,6 +207,27 @@ export default function PaymentPage() {
             >
               <div className="space-y-4">
                 <div>
+                  <Label htmlFor="package">Select Package</Label>
+                  <select
+                    id="package"
+                    value={selectedPackage}
+                    onChange={(e) => setSelectedPackage(e.target.value)}
+                    className="mt-1.5 flex h-9 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="">Choose a package...</option>
+                    {isPackagesLoading ? (
+                      <option disabled>Loading packages...</option>
+                    ) : (
+                      packages.map((pkg) => (
+                        <option key={pkg.id} value={pkg.id}>
+                          {pkg.name} - ${pkg.price}/month
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+
+                <div>
                   <Label htmlFor="accountNo">
                     Account Number Used for Payment
                   </Label>
@@ -204,24 +261,12 @@ export default function PaymentPage() {
                   )}
                 </div>
 
-                <div>
-                  <Label htmlFor="amount">Amount ($)</Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                    className="mt-1.5"
-                    {...register('amount')}
-                    aria-invalid={!!errors.amount}
-                  />
-                  {errors.amount && (
-                    <p className="mt-1 text-xs text-destructive">
-                      {errors.amount.message}
-                    </p>
-                  )}
-                </div>
+                {selectedPackageData && (
+                  <div className="rounded-lg bg-muted p-3">
+                    <p className="text-xs text-muted-foreground">Payment Amount</p>
+                    <p className="mt-1 text-2xl font-bold">${selectedPackageData.price}/month</p>
+                  </div>
+                )}
               </div>
 
               <Button

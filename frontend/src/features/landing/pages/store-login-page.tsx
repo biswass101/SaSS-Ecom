@@ -51,8 +51,17 @@ export default function StoreLoginPage() {
       try {
         const status = await storefrontService.getSubscriptionStatus(data.storeSlug)
         if (!status.isPaid) {
-          navigate(`/payment?subscriptionId=${status.subscriptionId}`)
-          toast.info('Please complete your payment to access the dashboard')
+          if (status.paymentStatus === 'PENDING') {
+            // Payment already submitted - go to dashboard (will show payment under review page)
+            navigate(`/${data.storeSlug}/admin`)
+          } else if (status.paymentStatus === 'N/A' || status.paymentStatus === undefined) {
+            // No payment submitted (N/A status) - go to payment page
+            navigate(`/payment?subscriptionId=${status.subscriptionId}`)
+            toast.info('Please complete your payment to access the dashboard')
+          } else {
+            // Other status - go to payment page
+            navigate(`/payment?subscriptionId=${status.subscriptionId}`)
+          }
           return
         }
       } catch { /* proceed to dashboard if check fails */ }

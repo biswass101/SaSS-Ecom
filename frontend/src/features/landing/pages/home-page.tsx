@@ -5,11 +5,15 @@ import {
   Store,
   Truck,
   AlertCircle,
+  Check,
 } from 'lucide-react'
 import { Link, useNavigate } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/stores/auth-store'
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { publicService } from '@/lib/api-services'
+import { cn } from '@/lib/utils'
 
 const features = [
   {
@@ -66,6 +70,11 @@ export default function HomePage() {
   const logout = useAuthStore((s) => s.logout)
   const [showModal, setShowModal] = useState(false)
   const [modalType, setModalType] = useState<'store-owner' | 'management'>('store-owner')
+
+  const { data: packages = [], isLoading: isPackagesLoading } = useQuery({
+    queryKey: ['public', 'packages'],
+    queryFn: publicService.getPackages,
+  })
 
   const handleGetStarted = () => {
     if (!isAuthenticated) {
@@ -256,6 +265,70 @@ export default function HomePage() {
                 </p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section className="py-24 sm:py-32">
+        <div className="mx-auto max-w-6xl px-4">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
+              Simple, Transparent Pricing
+            </h2>
+            <p className="mt-4 text-lg text-muted-foreground">
+              Choose the perfect plan for your business. Upgrade or downgrade anytime.
+            </p>
+          </div>
+          <div className="mt-12 grid gap-8 lg:grid-cols-3">
+            {isPackagesLoading ? <p className="text-muted-foreground">Loading plans...</p> : packages.map((pkg) => {
+              const isPopular = pkg.name === 'Growth'
+              return (
+                <div
+                  key={pkg.id}
+                  className={cn(
+                    'relative flex flex-col rounded-2xl border bg-card p-8 shadow-soft transition-all duration-300 hover:-translate-y-1',
+                    isPopular && 'border-primary ring-2 ring-primary/20',
+                  )}
+                >
+                  {isPopular && (
+                    <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full bg-primary px-4 py-1 text-xs font-semibold text-primary-foreground">
+                      Most Popular
+                    </div>
+                  )}
+                  <div className="mb-6">
+                    <h3 className="font-display text-xl font-bold">
+                      {pkg.name}
+                    </h3>
+                    <p className="mt-1.5 text-sm text-muted-foreground">
+                      {pkg.description}
+                    </p>
+                  </div>
+                  <div className="mb-6">
+                    <span className="font-display text-4xl font-extrabold">
+                      ${pkg.price}
+                    </span>
+                    <span className="text-muted-foreground">/month</span>
+                  </div>
+                  <ul className="mb-8 flex-1 space-y-3">
+                    {pkg.features.map((feature) => (
+                      <li key={feature} className="flex items-start gap-3">
+                        <Check className="mt-0.5 size-4 shrink-0 text-success" />
+                        <span className="text-sm">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <Button
+                    asChild
+                    variant={isPopular ? 'default' : 'outline'}
+                    size="lg"
+                    className="w-full"
+                  >
+                    <Link to="/create-store">Get Started</Link>
+                  </Button>
+                </div>
+              )
+            })}
           </div>
         </div>
       </section>

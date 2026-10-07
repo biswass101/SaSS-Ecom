@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
@@ -46,6 +46,24 @@ export default function CreateStorePage() {
   const [currentStep, setCurrentStep] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const login = useAuthStore((state) => state.login)
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const user = useAuthStore((s) => s.user)
+  const store = useAuthStore((s) => s.store)
+
+  // Redirect if SUPER_ADMIN or already has store
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      if (user.role === 'SUPER_ADMIN') {
+        navigate('/management', { replace: true })
+        return
+      }
+      if (user.role === 'STORE_ADMIN' && store?.slug) {
+        navigate(`/${store.slug}/admin`, { replace: true })
+        return
+      }
+    }
+  }, [isAuthenticated, user, store, navigate])
+
   const { data: packages = [], isLoading: isPackagesLoading } = useQuery({
     queryKey: ['public', 'packages'],
     queryFn: publicService.getPackages,
@@ -107,10 +125,23 @@ export default function CreateStorePage() {
       const result = await authService.createStore(data)
       const storeData = result.store ? { id: result.store.id, slug: result.store.slug, name: result.store.name } : null
       login(result.token, result.user, storeData)
-      toast.success('Store created successfully! Redirecting to payment...')
+      toast.success('Store created successfully! Redirecting to payment...', { position: 'bottom-right' })
       navigate(`/payment?subscriptionId=${result.store.subscription?.id ?? ''}`)
-    } catch {
-      toast.error('Unable to create your store', { description: 'Please check the details and try again.' })
+    } catch (error: any) {
+      const errorMessage = error.message || 'Unable to create your store'
+
+      // Check if slug is already taken
+      if (errorMessage.includes('slug') || errorMessage.includes('Slug')) {
+        toast.error('Store slug already taken', {
+          description: `The slug "${data.slug}" is already in use. Please choose a different store name.`,
+          position: 'bottom-right',
+        })
+      } else {
+        toast.error(errorMessage, {
+          description: 'Please check the details and try again.',
+          position: 'bottom-right',
+        })
+      }
     } finally {
       setIsSubmitting(false)
     }

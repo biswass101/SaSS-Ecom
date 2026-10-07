@@ -14,6 +14,7 @@ import {
 import { useState, useEffect } from 'react'
 import { Link, Outlet, useLocation, useParams, useNavigate } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { Logo } from '@/components/shared/logo'
 import { ThemeToggle } from '@/components/shared/theme-toggle'
 import { cn } from '@/lib/utils'
@@ -53,13 +54,122 @@ export default function AdminLayout() {
 
   const isStoreActive = storeStatus?.storeStatus === 'ACTIVE'
   const isPaymentVerified = storeStatus?.isPaid
+  const paymentStatus = storeStatus?.paymentStatus
 
-  // Redirect to payment page if payment not verified
-  useEffect(() => {
-    if (!storeLoading && storeStatus && !isPaymentVerified) {
-      navigate(`/payment?subscriptionId=${storeStatus.subscriptionId}`)
+  // If store is inactive, show permission denied (with payment reason if applicable)
+  if (!storeLoading && storeStatus && storeStatus.storeStatus !== 'ACTIVE') {
+    const isPendingPayment = storeStatus.paymentStatus === 'PENDING'
+    const isNoPayment = storeStatus.paymentStatus === 'N/A' || storeStatus.paymentStatus === undefined
+
+    if (isPendingPayment) {
+      return (
+        <div className="flex h-screen items-center justify-center bg-background">
+          <div className="text-center">
+            <AlertTriangle className="mx-auto mb-4 size-12 text-destructive" />
+            <h1 className="mb-2 text-2xl font-bold">Permission Denied</h1>
+            <p className="mb-2 text-muted-foreground">
+              Your store is currently inactive because your payment is under review.
+            </p>
+            <p className="mb-6 text-sm text-muted-foreground">
+              We'll activate your store as soon as your payment is verified by our admin team.
+            </p>
+            <Link
+              to={`/${storeSlug}`}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              View Store
+            </Link>
+          </div>
+        </div>
+      )
     }
-  }, [storeLoading, storeStatus, isPaymentVerified, navigate])
+
+    if (isNoPayment) {
+      return (
+        <div className="flex h-screen items-center justify-center bg-background">
+          <div className="text-center">
+            <AlertTriangle className="mx-auto mb-4 size-12 text-destructive" />
+            <h1 className="mb-2 text-2xl font-bold">Permission Denied</h1>
+            <p className="mb-2 text-muted-foreground">
+              Your store is currently inactive because payment verification is required.
+            </p>
+            <p className="mb-6 text-sm text-muted-foreground">
+              Please complete your payment to activate your store and access the dashboard.
+            </p>
+            <Link
+              to={`/payment?subscriptionId=${storeStatus.subscriptionId}`}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              Go to Payment
+            </Link>
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="text-center">
+          <AlertTriangle className="mx-auto mb-4 size-12 text-destructive" />
+          <h1 className="mb-2 text-2xl font-bold">Permission Denied</h1>
+          <p className="mb-6 text-muted-foreground">
+            Your store is currently inactive and cannot be accessed.<br />
+            Please contact management to activate your store.
+          </p>
+          <Link
+            to={`/${storeSlug}`}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            View Store Page
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  // If payment not verified, show waiting message or payment required
+  if (!storeLoading && storeStatus && !isPaymentVerified) {
+    // Payment already submitted - show waiting message
+    if (paymentStatus === 'PENDING') {
+      return (
+        <div className="flex h-screen items-center justify-center bg-background">
+          <div className="text-center">
+            <AlertTriangle className="mx-auto mb-4 size-12 text-destructive" />
+            <h1 className="mb-2 text-2xl font-bold">Payment Under Review</h1>
+            <p className="mb-6 text-muted-foreground">
+              Your payment has been submitted and is awaiting verification by our admin team.<br />
+              We'll activate your store as soon as your payment is verified.
+            </p>
+            <Link
+              to={`/${storeSlug}`}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              View Store
+            </Link>
+          </div>
+        </div>
+      )
+    }
+
+    // No payment submitted (N/A or undefined status) - show payment required
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="text-center">
+          <AlertTriangle className="mx-auto mb-4 size-12 text-destructive" />
+          <h1 className="mb-2 text-2xl font-bold">Payment Required</h1>
+          <p className="mb-6 text-muted-foreground">
+            Your store requires payment verification before you can access the dashboard.
+          </p>
+          <Link
+            to={`/payment?subscriptionId=${storeStatus.subscriptionId}`}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            Go to Payment
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   const navLinks = getNavLinks(storeSlug)
 

@@ -26,9 +26,18 @@ export function useLogin() {
           // Check if payment has been verified
           const status = await storefrontService.getSubscriptionStatus(store.slug)
           if (!status.isPaid) {
-            // Payment not verified - redirect to payment page
-            navigate(`/payment?subscriptionId=${status.subscriptionId}`)
-            toast.info('Please complete your payment to access the dashboard')
+            // Payment not verified
+            if (status.paymentStatus === 'PENDING') {
+              // Payment already submitted - go to dashboard (will show payment under review page)
+              navigate(`/${store.slug}/admin`)
+            } else if (status.paymentStatus === 'N/A' || status.paymentStatus === undefined) {
+              // No payment submitted (N/A status) - go to payment page
+              navigate(`/payment?subscriptionId=${status.subscriptionId}`)
+              toast.info('Please complete your payment to access the dashboard')
+            } else {
+              // Other status - go to payment page
+              navigate(`/payment?subscriptionId=${status.subscriptionId}`)
+            }
           } else {
             // Payment verified - go to dashboard
             navigate(`/${store.slug}/admin`)
