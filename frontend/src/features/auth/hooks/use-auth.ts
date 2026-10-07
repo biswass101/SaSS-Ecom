@@ -23,6 +23,25 @@ export function useLogin() {
   })
 }
 
+export function useStoreLogin() {
+  const login = useAuthStore((s) => s.login)
+  const navigate = useNavigate()
+
+  return useMutation({
+    mutationFn: (data: any) => authApi.storeLogin(data),
+    onSuccess: (res: any) => {
+      const store = res.store ? { id: res.store.id, slug: res.store.slug, name: res.store.name } : null
+      login(res.token, res.user, store)
+      toast.success('Welcome back!')
+      if (store) {
+        navigate(`/${store.slug}/admin`)
+      } else {
+        navigate('/')
+      }
+    },
+  })
+}
+
 export function useRegister() {
   const login = useAuthStore((s) => s.login)
   const navigate = useNavigate()

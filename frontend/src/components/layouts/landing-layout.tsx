@@ -86,12 +86,12 @@ export default function LandingLayout() {
                       )}
                       {user?.role === 'STORE_ADMIN' && (
                         <Link
-                          to="/stores-dashboard"
+                          to={useAuthStore((s) => s.store?.slug ? `/${s.store.slug}/admin` : '/')}
                           onClick={() => setDropdownOpen(false)}
                           className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground hover:bg-muted"
                         >
                           <LayoutDashboard className="size-4" />
-                          My Stores
+                          Store Dashboard
                         </Link>
                       )}
                       <button
@@ -171,12 +171,12 @@ export default function LandingLayout() {
                     )}
                     {user?.role === 'STORE_ADMIN' && (
                       <Link
-                        to="/stores-dashboard"
+                        to={useAuthStore((s) => s.store?.slug ? `/${s.store.slug}/admin` : '/')}
                         onClick={() => setMenuOpen(false)}
                         className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground hover:bg-muted"
                       >
                         <LayoutDashboard className="size-4" />
-                        My Stores
+                        Store Dashboard
                       </Link>
                     )}
                     <button

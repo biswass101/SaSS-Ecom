@@ -106,12 +106,15 @@ export default function HomePage() {
             <div className="flex flex-col gap-3">
               <Button
                 onClick={() => {
+                  const store = useAuthStore.getState().store
                   setShowModal(false)
-                  navigate('/stores-dashboard')
+                  if (store?.slug) {
+                    navigate(`/${store.slug}/admin`)
+                  }
                 }}
                 className="w-full"
               >
-                Go to My Stores
+                Go to Store Dashboard
               </Button>
               <Button
                 variant="outline"

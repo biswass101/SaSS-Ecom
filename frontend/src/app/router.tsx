@@ -39,10 +39,6 @@ export const router = createBrowserRouter([
         element: lazyPage(() => import('@/features/landing/pages/create-store-page')),
       },
       {
-        path: 'stores-dashboard',
-        element: lazyPage(() => import('@/features/landing/pages/stores-dashboard-page')),
-      },
-      {
         path: 'store-login',
         element: lazyPage(() => import('@/features/landing/pages/store-login-page')),
       },
