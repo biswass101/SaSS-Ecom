@@ -24,7 +24,6 @@ export async function loginUser(email: string, password: string) {
   const valid = await bcrypt.compare(password, user.passwordHash)
   if (!valid) throw new AppError(401, 'Invalid email or password')
 
-  // For store admins, include storeId in the token
   let storeId: string | undefined
   let store = null
   if (user.role === 'STORE_ADMIN') {
@@ -51,7 +50,6 @@ export async function registerUser(name: string, email: string, password: string
     data: { name, email, passwordHash, role: 'STORE_ADMIN' },
   })
 
-  // For new store admins, include storeId in the token
   let storeId: string | undefined
   let store = null
   const userStore = await prisma.store.findFirst({ where: { ownerId: user.id } })
