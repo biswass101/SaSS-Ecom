@@ -27,24 +27,30 @@ interface SubscriptionRow extends Subscription {
 export default function SubscriptionsPage() {
   const queryClient = useQueryClient()
   const [statusFilter, setStatusFilter] = useState<string>('All')
+  const [isVerifying, setIsVerifying] = useState(false)
   const { data: subscriptions = [], isLoading } = useQuery({
     queryKey: ['management', 'subscriptions'],
     queryFn: managementService.getSubscriptions,
   })
 
-  const rows: SubscriptionRow[] = subscriptions.map((sub) => {
-    const latestPayment = [...(sub.payments ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
-    return {
-      ...sub,
-      storeName: sub.store?.name ?? 'Unknown',
-      packageName: sub.package?.name ?? 'Unknown',
-      paymentStatus: latestPayment?.status ?? 'N/A',
-      latestPayment,
-    }
-  })
+  const rows: SubscriptionRow[] = useMemo(() => {
+    return subscriptions.map((sub) => {
+      const latestPayment = [...(sub.payments ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
+      return {
+        ...sub,
+        storeName: sub.store?.name ?? 'Unknown',
+        packageName: sub.package?.name ?? 'Unknown',
+        paymentStatus: latestPayment?.status ?? 'N/A',
+        latestPayment,
+      }
+    })
+  }, [subscriptions])
 
   async function handlePaymentVerify(paymentId: string, action: 'VERIFIED' | 'REJECTED') {
+    if (isVerifying) return
+
     try {
+      setIsVerifying(true)
       console.log('Verifying payment:', paymentId, action)
       await managementService.verifyPayment(paymentId, action)
       await queryClient.invalidateQueries({ queryKey: ['management', 'subscriptions'] })
@@ -52,6 +58,8 @@ export default function SubscriptionsPage() {
     } catch (error) {
       console.error('Payment verification error:', error)
       toast.error('Unable to update payment status')
+    } finally {
+      setIsVerifying(false)
     }
   }
 
@@ -88,22 +96,24 @@ export default function SubscriptionsPage() {
             <div className="flex gap-1">
               <button
                 type="button"
+                disabled={isVerifying}
                 onClick={(e) => {
                   e.stopPropagation()
                   handlePaymentVerify(row.original.latestPayment!.id, 'VERIFIED')
                 }}
-                className="rounded p-1 text-success hover:bg-success/10 transition-colors"
+                className="rounded p-1 text-success hover:bg-success/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Verify payment"
               >
                 <Check className="size-4" />
               </button>
               <button
                 type="button"
+                disabled={isVerifying}
                 onClick={(e) => {
                   e.stopPropagation()
                   handlePaymentVerify(row.original.latestPayment!.id, 'REJECTED')
                 }}
-                className="rounded p-1 text-destructive hover:bg-destructive/10 transition-colors"
+                className="rounded p-1 text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Reject payment"
               >
                 <X className="size-4" />
@@ -134,9 +144,10 @@ export default function SubscriptionsPage() {
           <button
             key={status}
             type="button"
+            disabled={isLoading || isVerifying}
             onClick={() => setStatusFilter(status)}
             className={cn(
-              'shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors',
+              'shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
               statusFilter === status
                 ? 'border-primary bg-primary text-primary-foreground'
                 : 'hover:bg-muted',
