@@ -6,10 +6,11 @@ import {
 } from '@tanstack/react-table'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { PageHeader } from '@/components/shared/page-header'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { cn, formatDate } from '@/lib/utils'
-import { mockPayments, mockStores, mockSubscriptions } from '@/mocks/data'
+import { managementService } from '@/lib/api-services'
 import type { Subscription } from '@/types'
 
 const statuses = ['All', 'ACTIVE', 'EXPIRED', 'CANCELLED'] as const
@@ -22,15 +23,16 @@ interface SubscriptionRow extends Subscription {
 
 export default function SubscriptionsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('All')
+  const { data: subscriptions = [], isLoading } = useQuery({
+    queryKey: ['management', 'subscriptions'],
+    queryFn: managementService.getSubscriptions,
+  })
 
-  const rows: SubscriptionRow[] = mockSubscriptions.map((sub) => {
-    const store = mockStores.find((s) => s.id === sub.storeId)
-    const latestPayment = mockPayments
-      .filter((p) => p.subscriptionId === sub.id)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
+  const rows: SubscriptionRow[] = subscriptions.map((sub) => {
+    const latestPayment = [...(sub.payments ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
     return {
       ...sub,
-      storeName: store?.name ?? 'Unknown',
+      storeName: sub.store?.name ?? 'Unknown',
       packageName: sub.package?.name ?? 'Unknown',
       paymentStatus: latestPayment?.status ?? 'N/A',
     }
@@ -77,7 +79,7 @@ export default function SubscriptionsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Subscriptions"
-        description={`${mockSubscriptions.length} total subscriptions`}
+        description={`${subscriptions.length} total subscriptions`}
       />
 
       <div className="flex gap-2 overflow-x-auto pb-2">
@@ -112,7 +114,9 @@ export default function SubscriptionsPage() {
             ))}
           </thead>
           <tbody>
-            {table.getRowModel().rows.length === 0 ? (
+            {isLoading ? (
+              <tr><td colSpan={columns.length} className="px-4 py-12 text-center text-sm text-muted-foreground">Loading subscriptions...</td></tr>
+            ) : table.getRowModel().rows.length === 0 ? (
               <tr>
                 <td colSpan={columns.length} className="px-4 py-12 text-center text-sm text-muted-foreground">
                   No subscriptions found

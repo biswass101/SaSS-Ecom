@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Link, useParams, useNavigate } from 'react-router'
+import { useQuery } from '@tanstack/react-query'
 import {
   useReactTable,
   getCoreRowModel,
@@ -9,7 +10,7 @@ import {
 import type { ColumnDef } from '@tanstack/react-table'
 import { Eye, ShoppingBag } from 'lucide-react'
 import { cn, formatCurrency, formatDate } from '@/lib/utils'
-import { getStoreBySlug, getOrdersByStore } from '@/mocks/data'
+import { adminService } from '@/lib/api-services'
 import type { Order } from '@/types'
 import { PageHeader } from '@/components/shared/page-header'
 import { EmptyState } from '@/components/shared/empty-state'
@@ -29,11 +30,12 @@ const STATUS_TABS = [
 export default function OrdersPage() {
   const { storeSlug } = useParams()
   const navigate = useNavigate()
-  const store = getStoreBySlug(storeSlug ?? '')
-  const allOrders = useMemo(
-    () => (store ? getOrdersByStore(store.id) : []),
-    [store],
-  )
+  const { data: orderResult, isLoading } = useQuery({
+    queryKey: ['admin', storeSlug, 'orders'],
+    queryFn: () => adminService.getOrders(storeSlug ?? ''),
+    enabled: Boolean(storeSlug),
+  })
+  const allOrders = orderResult?.data ?? []
 
   const [activeTab, setActiveTab] = useState<string>('All')
 
@@ -162,7 +164,7 @@ export default function OrdersPage() {
         })}
       </div>
 
-      {filteredOrders.length === 0 ? (
+      {isLoading ? <div className="rounded-xl border px-6 py-12 text-center text-sm text-muted-foreground">Loading orders...</div> : filteredOrders.length === 0 ? (
         <EmptyState
           icon={ShoppingBag}
           title="No orders found"

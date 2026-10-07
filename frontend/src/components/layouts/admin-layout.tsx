@@ -8,7 +8,9 @@ import {
   Package,
   ShoppingCart,
   X,
+  BarChart2,
 } from 'lucide-react'
+import { useState } from 'react'
 import { Link, Outlet, useLocation, useParams } from 'react-router'
 import { Logo } from '@/components/shared/logo'
 import { ThemeToggle } from '@/components/shared/theme-toggle'
@@ -36,6 +38,7 @@ export default function AdminLayout() {
   const isMobile = useIsMobile()
   const sidebarOpen = useUiStore((s) => s.sidebarOpen)
   const setSidebarOpen = useUiStore((s) => s.setSidebarOpen)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
 
   const navLinks = getNavLinks(storeSlug)
 
@@ -135,27 +138,49 @@ export default function AdminLayout() {
 
           <div className="flex items-center gap-3">
             <ThemeToggle />
-            <div className="relative group">
+            <div className="relative">
               <button
                 type="button"
+                onClick={() => setDropdownOpen(!dropdownOpen)}
                 className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-colors hover:bg-muted"
               >
                 <div className="flex size-7 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">
                   {user?.name?.charAt(0) ?? 'U'}
                 </div>
                 <span className="hidden sm:inline">{user?.name}</span>
-                <ChevronDown className="size-3.5 text-muted-foreground" />
+                <ChevronDown className={cn("size-3.5 text-muted-foreground transition-transform", dropdownOpen && "rotate-180")} />
               </button>
-              <div className="absolute right-0 top-full z-50 mt-1 hidden w-48 rounded-lg border bg-popover p-1 shadow-lg group-focus-within:block group-hover:block">
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-destructive hover:bg-muted"
-                >
-                  <LogOut className="size-4" />
-                  Sign out
-                </button>
-              </div>
+              {dropdownOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setDropdownOpen(false)}
+                  />
+                  <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-lg border bg-popover p-1 shadow-lg">
+                    {user?.role === 'SUPER_ADMIN' && (
+                      <Link
+                        to="/management"
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground hover:bg-muted"
+                      >
+                        <BarChart2 className="size-4" />
+                        Management
+                      </Link>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleLogout()
+                        setDropdownOpen(false)
+                      }}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-destructive hover:bg-muted"
+                    >
+                      <LogOut className="size-4" />
+                      Sign out
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </header>

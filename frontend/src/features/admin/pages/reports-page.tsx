@@ -1,4 +1,6 @@
 import { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useParams } from 'react-router'
 import {
   BarChart,
   Bar,
@@ -17,23 +19,28 @@ import {
   BarChart3,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
-import { mockSalesReport } from '@/mocks/data'
+import { adminService } from '@/lib/api-services'
 import { PageHeader } from '@/components/shared/page-header'
 import { StatCard } from '@/components/shared/stat-card'
 
 export default function ReportsPage() {
-  const report = mockSalesReport
+  const { storeSlug = '' } = useParams()
+  const { data: report } = useQuery({
+    queryKey: ['admin', storeSlug, 'sales-report'],
+    queryFn: () => adminService.getSalesReport(storeSlug),
+    enabled: Boolean(storeSlug),
+  })
 
   const chartData = useMemo(
     () =>
-      report.dailyRevenue.map((d) => ({
+      (report?.dailyRevenue ?? []).map((d) => ({
         ...d,
         label: new Date(d.date).toLocaleDateString('en-US', {
           month: 'short',
           day: 'numeric',
         }),
       })),
-    [report.dailyRevenue],
+    [report?.dailyRevenue],
   )
 
   const tooltipStyle = {
@@ -47,28 +54,28 @@ export default function ReportsPage() {
     <div className="space-y-8">
       <PageHeader
         title="Sales Reports"
-        description={`${report.period} overview`}
+        description={`${report?.period ?? 'Sales'} overview`}
       />
 
       {/* Stats row */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Total Revenue"
-          value={formatCurrency(report.totalRevenue)}
+          value={formatCurrency(report?.totalRevenue ?? 0)}
           change="+18.2% from last period"
           trend="up"
           icon={DollarSign}
         />
         <StatCard
           label="Total Orders"
-          value={report.totalOrders.toString()}
+          value={(report?.totalOrders ?? 0).toString()}
           change="+12.4% from last period"
           trend="up"
           icon={ShoppingCart}
         />
         <StatCard
           label="Avg. Order Value"
-          value={formatCurrency(report.averageOrderValue)}
+          value={formatCurrency(report?.averageOrderValue ?? 0)}
           change="+4.1% from last period"
           trend="up"
           icon={TrendingUp}
@@ -76,9 +83,9 @@ export default function ReportsPage() {
         <StatCard
           label="Top Product"
           value={
-            report.topProducts[0]?.title.split('(')[0].trim() ?? '-'
+            report?.topProducts[0]?.title.split('(')[0].trim() ?? '-'
           }
-          change={formatCurrency(report.topProducts[0]?.revenue ?? 0)}
+          change={formatCurrency(report?.topProducts[0]?.revenue ?? 0)}
           icon={BarChart3}
         />
       </div>
@@ -199,7 +206,7 @@ export default function ReportsPage() {
               </tr>
             </thead>
             <tbody>
-              {report.topProducts.map((product, index) => (
+              {(report?.topProducts ?? []).map((product, index) => (
                 <tr
                   key={product.productId}
                   className="border-b last:border-0 transition-colors hover:bg-muted/30"

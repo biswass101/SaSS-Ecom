@@ -1,13 +1,14 @@
-import { useState } from 'react'
 import { Link, useParams } from 'react-router'
-import { ArrowLeft, Printer, Mail, Phone, MapPin } from 'lucide-react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { ArrowLeft, Printer, Mail, Phone, MapPin, Check, Clock, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils'
-import { mockOrders } from '@/mocks/data'
+import { adminService } from '@/lib/api-services'
 import type { OrderStatus } from '@/types'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 const STATUS_FLOW: OrderStatus[] = [
   'CONFIRMED',
@@ -15,6 +16,9 @@ const STATUS_FLOW: OrderStatus[] = [
   'SHIPPED',
   'DELIVERED',
 ]
+
+const PAYMENT_STATUSES = ['PENDING', 'COMPLETED', 'FAILED'] as const
+type PaymentStatus = typeof PAYMENT_STATUSES[number]
 
 function getNextStatus(current: OrderStatus): OrderStatus | null {
   const idx = STATUS_FLOW.indexOf(current)
@@ -29,8 +33,16 @@ function statusLabel(status: OrderStatus): string {
 
 export default function OrderDetailPage() {
   const { storeSlug, orderId } = useParams()
-  const initial = mockOrders.find((o) => o.id === orderId)
-  const [order, setOrder] = useState(initial)
+  const queryClient = useQueryClient()
+  const { data: order, isLoading } = useQuery({
+    queryKey: ['admin', storeSlug, 'order', orderId],
+    queryFn: () => adminService.getOrder(storeSlug ?? '', orderId ?? ''),
+    enabled: Boolean(storeSlug && orderId),
+  })
+
+  if (isLoading) {
+    return <div className="py-12 text-center text-sm text-muted-foreground">Loading order...</div>
+  }
 
   if (!order) {
     return (
@@ -49,16 +61,42 @@ export default function OrderDetailPage() {
     )
   }
 
-  const nextStatus = getNextStatus(order.status)
+  const currentOrder = order
+  const nextStatus = getNextStatus(currentOrder.status)
+  const paymentStatus: PaymentStatus = (order as any).paymentStatus || 'PENDING'
 
-  function handleStatusUpdate() {
+  async function handleStatusUpdate() {
     if (!nextStatus) return
-    setOrder((prev) =>
-      prev
-        ? { ...prev, status: nextStatus, updatedAt: new Date().toISOString() }
-        : prev,
-    )
-    toast.success(`Order marked as ${statusLabel(nextStatus)}`)
+    try {
+      await adminService.updateOrderStatus(storeSlug ?? '', currentOrder.id, nextStatus)
+      await queryClient.invalidateQueries({ queryKey: ['admin', storeSlug, 'order', orderId] })
+      await queryClient.invalidateQueries({ queryKey: ['admin', storeSlug, 'orders'] })
+      toast.success(`Order marked as ${statusLabel(nextStatus)}`)
+    } catch {
+      toast.error('Unable to update order status')
+    }
+  }
+
+  async function handlePaymentStatusUpdate(newStatus: PaymentStatus) {
+    try {
+      await adminService.updateOrderPaymentStatus(storeSlug ?? '', currentOrder.id, newStatus)
+      await queryClient.invalidateQueries({ queryKey: ['admin', storeSlug, 'order', orderId] })
+      await queryClient.invalidateQueries({ queryKey: ['admin', storeSlug, 'orders'] })
+      toast.success(`Payment marked as ${newStatus.toLowerCase()}`)
+    } catch {
+      toast.error('Unable to update payment status')
+    }
+  }
+
+  function getPaymentStatusIcon(status: PaymentStatus) {
+    switch (status) {
+      case 'COMPLETED':
+        return <Check className="size-4 text-success" />
+      case 'FAILED':
+        return <XCircle className="size-4 text-destructive" />
+      default:
+        return <Clock className="size-4 text-warning" />
+    }
   }
 
   return (
@@ -220,6 +258,38 @@ export default function OrderDetailPage() {
                 <MapPin className="size-3.5 text-muted-foreground" />
               </div>
               <p className="leading-relaxed">{order.shippingAddress}</p>
+            </div>
+          </div>
+
+          {/* Payment Status */}
+          <div className="rounded-xl border bg-card p-6 shadow-soft">
+            <h3 className="mb-4 font-display font-semibold">
+              Payment Status
+            </h3>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between rounded-lg bg-muted/30 p-3">
+                <div className="flex items-center gap-3">
+                  {getPaymentStatusIcon(paymentStatus)}
+                  <span className="text-sm font-medium capitalize">{paymentStatus.toLowerCase()}</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {PAYMENT_STATUSES.map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => handlePaymentStatusUpdate(status)}
+                    className={cn(
+                      'rounded-lg px-3 py-2 text-xs font-medium transition-colors',
+                      paymentStatus === status
+                        ? 'bg-primary text-primary-foreground'
+                        : 'border bg-background hover:bg-muted'
+                    )}
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 

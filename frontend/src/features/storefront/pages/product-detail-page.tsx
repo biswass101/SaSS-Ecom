@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router'
+import { useQuery } from '@tanstack/react-query'
 import { Minus, Plus, ShoppingCart, Package, ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -16,27 +17,35 @@ import {
 import { ProductColorImage } from '@/components/shared/product-color-image'
 import { cn, formatCurrency } from '@/lib/utils'
 import { useCartStore } from '@/stores/cart-store'
-import { getStoreBySlug, mockProducts } from '@/mocks/data'
+import { storefrontService } from '@/lib/api-services'
 import type { Product } from '@/types'
 
 export default function ProductDetailPage() {
   const { storeSlug = '', productId = '' } = useParams()
   const [quantity, setQuantity] = useState(1)
 
-  const store = getStoreBySlug(storeSlug)
-  const product = mockProducts.find((p) => p.id === productId)
+  const { data: store, isLoading: isStoreLoading } = useQuery({
+    queryKey: ['storefront', storeSlug, 'store'],
+    queryFn: () => storefrontService.getStore(storeSlug),
+    enabled: Boolean(storeSlug),
+  })
+  const { data: product, isLoading: isProductLoading } = useQuery({
+    queryKey: ['storefront', storeSlug, 'product', productId],
+    queryFn: () => storefrontService.getProduct(storeSlug, productId),
+    enabled: Boolean(storeSlug && productId),
+  })
+  const { data: relatedResult } = useQuery({
+    queryKey: ['storefront', storeSlug, 'related-products', product?.categoryId],
+    queryFn: () => storefrontService.getProducts(storeSlug, { categoryId: product?.categoryId ?? '' }),
+    enabled: Boolean(storeSlug && product?.categoryId),
+  })
 
   const relatedProducts = useMemo(() => {
     if (!product) return []
-    return mockProducts
-      .filter(
-        (p) =>
-          p.categoryId === product.categoryId &&
-          p.id !== product.id &&
-          p.storeId === product.storeId,
-      )
+    return (relatedResult?.data ?? [])
+      .filter((p) => p.id !== product.id)
       .slice(0, 4)
-  }, [product])
+  }, [product, relatedResult])
 
   function handleAddToCart() {
     if (!product) return
@@ -50,6 +59,10 @@ export default function ProductDetailPage() {
   function handleRelatedAddToCart(p: Product) {
     useCartStore.getState().addItem(storeSlug, p)
     toast.success(`${p.title} added to cart`)
+  }
+
+  if (isStoreLoading || isProductLoading) {
+    return <div className="flex min-h-[60vh] items-center justify-center text-sm text-muted-foreground">Loading product...</div>
   }
 
   if (!product || !store) {

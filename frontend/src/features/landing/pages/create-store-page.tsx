@@ -10,7 +10,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { cn, slugify } from '@/lib/utils'
-import { mockPackages } from '@/mocks/data'
+import { authService, publicService } from '@/lib/api-services'
+import { useAuthStore } from '@/stores/auth-store'
+import { useQuery } from '@tanstack/react-query'
 import type { Package } from '@/types'
 
 const storeInfoSchema = z.object({
@@ -43,6 +45,11 @@ export default function CreateStorePage() {
   const navigate = useNavigate()
   const [currentStep, setCurrentStep] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const login = useAuthStore((state) => state.login)
+  const { data: packages = [], isLoading: isPackagesLoading } = useQuery({
+    queryKey: ['public', 'packages'],
+    queryFn: publicService.getPackages,
+  })
 
   const form = useForm<FormValues>({
     resolver: zodResolver(fullSchema),
@@ -94,13 +101,18 @@ export default function CreateStorePage() {
     setCurrentStep((prev) => Math.max(prev - 1, 0))
   }
 
-  async function onSubmit(_data: FormValues) {
+  async function onSubmit(data: FormValues) {
     setIsSubmitting(true)
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-    setIsSubmitting(false)
-    toast.success('Store created successfully! Redirecting to payment...')
-    navigate('/payment')
+    try {
+      const result = await authService.createStore(data)
+      login(result.token, result.user)
+      toast.success('Store created successfully! Redirecting to payment...')
+      navigate(`/payment?subscriptionId=${result.store.subscription?.id ?? ''}`)
+    } catch {
+      toast.error('Unable to create your store', { description: 'Please check the details and try again.' })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -229,7 +241,7 @@ export default function CreateStorePage() {
                   Choose Your Plan
                 </h2>
                 <div className="grid gap-4 sm:grid-cols-3">
-                  {mockPackages.map((pkg) => {
+                  {isPackagesLoading ? <p className="text-sm text-muted-foreground">Loading plans...</p> : packages.map((pkg) => {
                     const isSelected = selectedPackageId === pkg.id
                     return (
                       <button

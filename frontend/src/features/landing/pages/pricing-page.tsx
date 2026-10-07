@@ -8,7 +8,8 @@ import {
 } from '@/components/ui/accordion'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { mockPackages } from '@/mocks/data'
+import { publicService } from '@/lib/api-services'
+import { useQuery } from '@tanstack/react-query'
 
 const faqs = [
   {
@@ -34,6 +35,11 @@ const faqs = [
 ]
 
 export default function PricingPage() {
+  const { data: packages = [], isLoading } = useQuery({
+    queryKey: ['public', 'packages'],
+    queryFn: publicService.getPackages,
+  })
+
   return (
     <div>
       {/* Header */}
@@ -53,7 +59,7 @@ export default function PricingPage() {
       <section className="py-20 sm:py-24">
         <div className="mx-auto max-w-6xl px-4">
           <div className="grid gap-8 lg:grid-cols-3">
-            {mockPackages.map((pkg) => {
+            {isLoading ? <p className="text-muted-foreground">Loading plans...</p> : packages.map((pkg) => {
               const isPopular = pkg.name === 'Growth'
               return (
                 <div

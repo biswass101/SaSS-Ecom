@@ -121,6 +121,7 @@ export interface Order {
   subtotal: number
   total: number
   status: OrderStatus
+  paymentStatus: PaymentStatus
   notes: string | null
   createdAt: string
   updatedAt: string

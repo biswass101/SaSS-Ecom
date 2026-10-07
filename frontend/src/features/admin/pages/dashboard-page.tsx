@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { Link, useParams } from 'react-router'
+import { useQuery } from '@tanstack/react-query'
 import {
   AreaChart,
   Area,
@@ -11,7 +12,7 @@ import {
 } from 'recharts'
 import { Package, ShoppingCart, DollarSign, TrendingUp, Plus, ListOrdered } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { getStoreBySlug, getProductsByStore, getOrdersByStore, mockSalesReport } from '@/mocks/data'
+import { adminService, storefrontService } from '@/lib/api-services'
 import { StatCard } from '@/components/shared/stat-card'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { PageHeader } from '@/components/shared/page-header'
@@ -20,9 +21,28 @@ import { Button } from '@/components/ui/button'
 
 export default function DashboardPage() {
   const { storeSlug } = useParams()
-  const store = getStoreBySlug(storeSlug ?? '')
-  const products = store ? getProductsByStore(store.id) : []
-  const orders = store ? getOrdersByStore(store.id) : []
+  const { data: store, isLoading: storeLoading } = useQuery({
+    queryKey: ['storefront', storeSlug, 'store'],
+    queryFn: () => storefrontService.getStore(storeSlug ?? ''),
+    enabled: Boolean(storeSlug),
+  })
+  const { data: productResult, isLoading: productsLoading } = useQuery({
+    queryKey: ['admin', storeSlug, 'products'],
+    queryFn: () => adminService.getProducts(storeSlug ?? ''),
+    enabled: Boolean(storeSlug),
+  })
+  const { data: orderResult, isLoading: ordersLoading } = useQuery({
+    queryKey: ['admin', storeSlug, 'orders'],
+    queryFn: () => adminService.getOrders(storeSlug ?? ''),
+    enabled: Boolean(storeSlug),
+  })
+  const { data: report, isLoading: reportLoading } = useQuery({
+    queryKey: ['admin', storeSlug, 'sales-report'],
+    queryFn: () => adminService.getSalesReport(storeSlug ?? ''),
+    enabled: Boolean(storeSlug),
+  })
+  const products = productResult?.data ?? []
+  const orders = orderResult?.data ?? []
 
   const stats = useMemo(() => {
     const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0)
@@ -42,11 +62,15 @@ export default function DashboardPage() {
   }, [orders])
 
   const chartData = useMemo(() => {
-    return mockSalesReport.dailyRevenue.map((d) => ({
+    return (report?.dailyRevenue ?? []).map((d) => ({
       ...d,
       date: new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
     }))
-  }, [])
+  }, [report])
+
+  if (storeLoading || productsLoading || ordersLoading || reportLoading) {
+    return <div className="py-12 text-center text-sm text-muted-foreground">Loading dashboard...</div>
+  }
 
   if (!store) {
     return (

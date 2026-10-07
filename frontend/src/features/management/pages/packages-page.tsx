@@ -2,13 +2,14 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { Check, Edit, Plus, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { PageHeader } from '@/components/shared/page-header'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { formatCurrency } from '@/lib/utils'
-import { mockPackages } from '@/mocks/data'
+import { managementService } from '@/lib/api-services'
 import type { Package } from '@/types'
 
 const packageSchema = z.object({
@@ -24,7 +25,11 @@ const packageSchema = z.object({
 type PackageFormValues = z.infer<typeof packageSchema>
 
 export default function PackagesPage() {
-  const [packages, setPackages] = useState<Package[]>([...mockPackages])
+  const queryClient = useQueryClient()
+  const { data: packages = [], isLoading } = useQuery({
+    queryKey: ['management', 'packages'],
+    queryFn: managementService.getPackages,
+  })
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
 
@@ -72,32 +77,31 @@ export default function PackagesPage() {
     setDialogOpen(true)
   }
 
-  function handleDelete(id: string) {
-    setPackages((prev) => prev.filter((p) => p.id !== id))
-    toast.success('Package deleted')
+  async function handleDelete(id: string) {
+    try {
+      await managementService.deletePackage(id)
+      await queryClient.invalidateQueries({ queryKey: ['management', 'packages'] })
+      toast.success('Package deleted')
+    } catch {
+      toast.error('Unable to delete package')
+    }
   }
 
-  function onSubmit(values: PackageFormValues) {
+  async function onSubmit(values: PackageFormValues) {
     const features = values.features.split(',').map((f) => f.trim()).filter(Boolean)
-    if (editingId) {
-      setPackages((prev) =>
-        prev.map((p) =>
-          p.id === editingId ? { ...p, ...values, features } : p,
-        ),
-      )
-      toast.success('Package updated')
-    } else {
-      const newPkg: Package = {
-        id: 'pkg_' + Date.now(),
-        ...values,
-        features,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+    try {
+      if (editingId) {
+        await managementService.updatePackage(editingId, { ...values, features })
+        toast.success('Package updated')
+      } else {
+        await managementService.createPackage({ ...values, features })
+        toast.success('Package created')
       }
-      setPackages((prev) => [...prev, newPkg])
-      toast.success('Package created')
+      await queryClient.invalidateQueries({ queryKey: ['management', 'packages'] })
+      setDialogOpen(false)
+    } catch {
+      toast.error('Unable to save package')
     }
-    setDialogOpen(false)
   }
 
   return (
@@ -117,7 +121,7 @@ export default function PackagesPage() {
       />
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {packages.map((pkg) => (
+        {isLoading ? <p className="text-sm text-muted-foreground">Loading packages...</p> : packages.map((pkg) => (
           <div
             key={pkg.id}
             className="flex flex-col rounded-xl border bg-card shadow-soft transition-shadow hover:shadow-md"

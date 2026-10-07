@@ -5,21 +5,20 @@ import {
   Store,
 } from 'lucide-react'
 import { Link } from 'react-router'
+import { useQuery } from '@tanstack/react-query'
 import { PageHeader } from '@/components/shared/page-header'
 import { StatCard } from '@/components/shared/stat-card'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { mockPayments, mockStores, mockSubscriptions } from '@/mocks/data'
+import { managementService } from '@/lib/api-services'
 
 export default function ManagementDashboard() {
-  const activeStores = mockStores.filter((s) => s.status === 'ACTIVE').length
-  const totalRevenue = mockSubscriptions.reduce((sum, sub) => {
-    const payments = mockPayments.filter(
-      (p) => p.subscriptionId === sub.id && p.status === 'VERIFIED',
-    )
-    return sum + payments.reduce((s, p) => s + p.amount, 0)
-  }, 0)
-  const pendingPayments = mockPayments.filter((p) => p.status === 'PENDING')
+  const { data: stores = [], isLoading: storesLoading } = useQuery({ queryKey: ['management', 'stores'], queryFn: managementService.getStores })
+  const { data: subscriptions = [], isLoading: subscriptionsLoading } = useQuery({ queryKey: ['management', 'subscriptions'], queryFn: managementService.getSubscriptions })
+  const payments = subscriptions.flatMap((subscription) => subscription.payments ?? [])
+  const activeStores = stores.filter((store) => store.status === 'ACTIVE').length
+  const totalRevenue = payments.filter((payment) => payment.status === 'VERIFIED').reduce((sum, payment) => sum + payment.amount, 0)
+  const pendingPayments = payments.filter((payment) => payment.status === 'PENDING')
 
   return (
     <div className="space-y-6">
@@ -31,26 +30,26 @@ export default function ManagementDashboard() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Total Stores"
-          value={mockStores.length.toString()}
+          value={storesLoading ? '—' : stores.length.toString()}
           change="+2 this month"
           trend="up"
           icon={Store}
         />
         <StatCard
           label="Active Stores"
-          value={activeStores.toString()}
+          value={storesLoading ? '—' : activeStores.toString()}
           icon={Activity}
         />
         <StatCard
           label="Total Revenue"
-          value={formatCurrency(totalRevenue)}
+          value={subscriptionsLoading ? '—' : formatCurrency(totalRevenue)}
           change="+12%"
           trend="up"
           icon={DollarSign}
         />
         <StatCard
           label="Pending Payments"
-          value={pendingPayments.length.toString()}
+          value={subscriptionsLoading ? '—' : pendingPayments.length.toString()}
           icon={Clock}
         />
       </div>
@@ -67,7 +66,7 @@ export default function ManagementDashboard() {
             </Link>
           </div>
           <div className="divide-y">
-            {mockStores.map((store) => (
+            {stores.map((store) => (
               <div key={store.id} className="flex items-center gap-4 px-5 py-3">
                 <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 font-display text-sm font-bold text-primary">
                   {store.name.charAt(0)}

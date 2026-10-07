@@ -8,13 +8,15 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { useQuery } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
-import { mockPaymentChannels } from '@/mocks/data'
+import { publicService } from '@/lib/api-services'
 
 const paymentSchema = z.object({
   accountNo: z.string().min(1, 'Account number is required'),
@@ -30,10 +32,16 @@ const channelIcons: Record<string, typeof Building2> = {
 }
 
 export default function PaymentPage() {
+  const [searchParams] = useSearchParams()
+  const subscriptionId = searchParams.get('subscriptionId') ?? ''
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null)
 
-  const activeChannels = mockPaymentChannels.filter((ch) => ch.isActive)
+  const { data: channels = [], isLoading: isChannelsLoading } = useQuery({
+    queryKey: ['public', 'payment-channels'],
+    queryFn: publicService.getPaymentChannels,
+  })
+  const activeChannels = channels.filter((ch) => ch.isActive)
 
   const form = useForm<PaymentFormValues>({
     resolver: zodResolver(paymentSchema),
@@ -51,13 +59,22 @@ export default function PaymentPage() {
     formState: { errors },
   } = form
 
-  async function onSubmit(_data: PaymentFormValues) {
+  async function onSubmit(data: PaymentFormValues) {
+    if (!subscriptionId) {
+      toast.error('Missing subscription', { description: 'Return to store creation and choose a plan first.' })
+      return
+    }
     setIsSubmitting(true)
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-    setIsSubmitting(false)
-    toast.success('Payment submitted for verification')
-    reset()
-    setSelectedChannel(null)
+    try {
+      await publicService.submitPayment({ subscriptionId, accountNo: data.accountNo, transactionId: data.transactionId, amount: Number(data.amount) })
+      toast.success('Payment submitted for verification')
+      reset()
+      setSelectedChannel(null)
+    } catch {
+      toast.error('Unable to submit payment', { description: 'Please verify the transaction details and try again.' })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -80,7 +97,7 @@ export default function PaymentPage() {
               Payment Channels
             </h2>
             <div className="mt-4 space-y-4">
-              {activeChannels.map((channel) => {
+              {isChannelsLoading ? <p className="text-sm text-muted-foreground">Loading payment channels...</p> : activeChannels.map((channel) => {
                 const Icon = channelIcons[channel.type] ?? CreditCard
                 const isSelected = selectedChannel === channel.id
                 return (

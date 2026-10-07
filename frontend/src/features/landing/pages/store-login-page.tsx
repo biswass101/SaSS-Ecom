@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAuthStore } from '@/stores/auth-store'
-import { mockUsers } from '@/mocks/data'
+import { authService } from '@/lib/api-services'
 import { useState } from 'react'
 
 const storeLoginSchema = z.object({
@@ -43,21 +43,15 @@ export default function StoreLoginPage() {
 
   async function onSubmit(data: StoreLoginValues) {
     setIsSubmitting(true)
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    setIsSubmitting(false)
-
-    // Mock login: find a store admin user
-    const user = mockUsers.find(
-      (u) => u.role === 'STORE_ADMIN' && u.email === data.email,
-    )
-
-    if (user) {
-      login('mock-token-store-admin', user)
+    try {
+      const result = await authService.storeLogin(data)
+      login(result.token, result.user)
       toast.success('Welcome back!')
       navigate(`/${data.storeSlug}/admin`)
-    } else {
-      toast.error('Invalid credentials. Please try again.')
+    } catch {
+      toast.error('Unable to sign in', { description: 'Check your store slug, email, and password.' })
+    } finally {
+      setIsSubmitting(false)
     }
   }
 

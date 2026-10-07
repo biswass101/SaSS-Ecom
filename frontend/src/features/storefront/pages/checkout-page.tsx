@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
+import { useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -21,6 +22,7 @@ import { ProductColorImage } from '@/components/shared/product-color-image'
 import { formatCurrency } from '@/lib/utils'
 import { useCartStore } from '@/stores/cart-store'
 import { emailSchema, phoneSchema, requiredString } from '@/lib/validators'
+import { storefrontService } from '@/lib/api-services'
 
 const checkoutSchema = z.object({
   customerName: requiredString('Customer name'),
@@ -38,6 +40,7 @@ type CheckoutFormValues = z.infer<typeof checkoutSchema>
 export default function CheckoutPage() {
   const { storeSlug = '' } = useParams()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   const items = useCartStore((s) => s.getItems(storeSlug))
   const subtotal = useCartStore((s) => s.getSubtotal(storeSlug))
@@ -63,7 +66,26 @@ export default function CheckoutPage() {
     }
   }, [items.length, navigate, storeSlug])
 
-  function onSubmit(_data: CheckoutFormValues) {
+  async function onSubmit(data: CheckoutFormValues) {
+    try {
+      await storefrontService.checkout(storeSlug, {
+        customerName: data.customerName,
+        customerEmail: data.email,
+        customerPhone: data.phone,
+        shippingAddress: data.shippingAddress,
+        notes: data.notes,
+        items: items.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+        })),
+      })
+      await queryClient.invalidateQueries({ queryKey: ['storefront', storeSlug] })
+    } catch {
+      toast.error('Unable to place your order', {
+        description: 'Please check your details and try again.',
+      })
+      return
+    }
     clearCart(storeSlug)
     toast.success('Order placed successfully!', {
       description:

@@ -7,17 +7,22 @@ import {
 import type { ColumnDef } from '@tanstack/react-table'
 import { ExternalLink } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/shared/page-header'
 import { SearchInput } from '@/components/shared/search-input'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { cn, formatDate } from '@/lib/utils'
-import { mockStores } from '@/mocks/data'
+import { managementService } from '@/lib/api-services'
 import type { Store, StoreStatus } from '@/types'
 
 export default function StoresPage() {
-  const [stores, setStores] = useState<Store[]>([...mockStores])
+  const queryClient = useQueryClient()
+  const { data: stores = [], isLoading } = useQuery({
+    queryKey: ['management', 'stores'],
+    queryFn: managementService.getStores,
+  })
   const [search, setSearch] = useState('')
 
   const filtered = useMemo(
@@ -28,15 +33,15 @@ export default function StoresPage() {
     [stores, search],
   )
 
-  function toggleStatus(id: string) {
-    setStores((prev) =>
-      prev.map((s) => {
-        if (s.id !== id) return s
-        const next: StoreStatus = s.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
-        toast.success(`Store marked as ${next.toLowerCase()}`)
-        return { ...s, status: next }
-      }),
-    )
+  async function toggleStatus(store: Store) {
+    const next: StoreStatus = store.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
+    try {
+      await managementService.updateStoreStatus(store.id, next)
+      await queryClient.invalidateQueries({ queryKey: ['management', 'stores'] })
+      toast.success(`Store marked as ${next.toLowerCase()}`)
+    } catch {
+      toast.error('Unable to update store status')
+    }
   }
 
   const columns: ColumnDef<Store>[] = [
@@ -77,7 +82,7 @@ export default function StoresPage() {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => toggleStatus(row.original.id)}
+            onClick={() => toggleStatus(row.original)}
             className={cn(
               'rounded-full px-3 py-1 text-xs font-medium transition-colors',
               row.original.status === 'ACTIVE'
@@ -134,7 +139,9 @@ export default function StoresPage() {
             ))}
           </thead>
           <tbody>
-            {table.getRowModel().rows.length === 0 ? (
+            {isLoading ? (
+              <tr><td colSpan={columns.length} className="px-4 py-12 text-center text-sm text-muted-foreground">Loading stores...</td></tr>
+            ) : table.getRowModel().rows.length === 0 ? (
               <tr>
                 <td colSpan={columns.length} className="px-4 py-12 text-center text-sm text-muted-foreground">
                   No stores found

@@ -26,8 +26,17 @@ export const PaymentStatus = {
   PENDING: 'PENDING',
   VERIFIED: 'VERIFIED',
   REJECTED: 'REJECTED',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED',
 } as const
 export type PaymentStatus = (typeof PaymentStatus)[keyof typeof PaymentStatus]
+
+export const OrderPaymentStatus = {
+  PENDING: 'PENDING',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED',
+} as const
+export type OrderPaymentStatus = (typeof OrderPaymentStatus)[keyof typeof OrderPaymentStatus]
 
 export const SubscriptionStatus = {
   ACTIVE: 'ACTIVE',

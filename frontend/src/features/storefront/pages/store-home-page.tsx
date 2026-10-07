@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Link, useParams, useSearchParams } from 'react-router'
 import { ShoppingCart } from 'lucide-react'
 import { toast } from 'sonner'
@@ -7,11 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { ProductColorImage } from '@/components/shared/product-color-image'
 import { cn, formatCurrency } from '@/lib/utils'
 import { useCartStore } from '@/stores/cart-store'
-import {
-  getStoreBySlug,
-  getProductsByStore,
-  getCategoriesByStore,
-} from '@/mocks/data'
+import { storefrontService } from '@/lib/api-services'
 import type { Product } from '@/types'
 
 export default function StoreHomePage() {
@@ -19,14 +16,24 @@ export default function StoreHomePage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const activeCategoryId = searchParams.get('category')
 
-  const store = getStoreBySlug(storeSlug)
-  const products = store ? getProductsByStore(store.id) : []
-  const categories = store ? getCategoriesByStore(store.id) : []
+  const { data: store, isLoading: isStoreLoading } = useQuery({
+    queryKey: ['storefront', storeSlug, 'store'],
+    queryFn: () => storefrontService.getStore(storeSlug),
+    enabled: Boolean(storeSlug),
+  })
+  const { data: categories = [], isLoading: isCategoriesLoading } = useQuery({
+    queryKey: ['storefront', storeSlug, 'categories'],
+    queryFn: () => storefrontService.getCategories(storeSlug),
+    enabled: Boolean(storeSlug),
+  })
+  const { data: productResult, isLoading: isProductsLoading } = useQuery({
+    queryKey: ['storefront', storeSlug, 'products', activeCategoryId],
+    queryFn: () => storefrontService.getProducts(storeSlug, activeCategoryId ? { categoryId: activeCategoryId } : undefined),
+    enabled: Boolean(storeSlug),
+  })
+  const products = productResult?.data ?? []
 
-  const filteredProducts = useMemo(() => {
-    if (!activeCategoryId) return products
-    return products.filter((p) => p.categoryId === activeCategoryId)
-  }, [products, activeCategoryId])
+  const filteredProducts = useMemo(() => products, [products])
 
   function handleCategoryClick(categoryId: string | null) {
     if (categoryId) {
@@ -39,6 +46,10 @@ export default function StoreHomePage() {
   function handleAddToCart(product: Product) {
     useCartStore.getState().addItem(storeSlug, product)
     toast.success(`${product.title} added to cart`)
+  }
+
+  if (isStoreLoading || isCategoriesLoading || isProductsLoading) {
+    return <div className="flex min-h-[60vh] items-center justify-center text-sm text-muted-foreground">Loading store...</div>
   }
 
   if (!store) {

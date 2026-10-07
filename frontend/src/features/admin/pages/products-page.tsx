@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useParams } from 'react-router'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -12,9 +13,9 @@ import {
 import type { ColumnDef } from '@tanstack/react-table'
 import { Plus, Pencil, Trash2, PackageOpen } from 'lucide-react'
 import { toast } from 'sonner'
-import { formatCurrency, formatDate, generateId } from '@/lib/utils'
-import { getStoreBySlug, getProductsByStore, getCategoriesByStore } from '@/mocks/data'
-import type { Product, Category } from '@/types'
+import { formatCurrency, formatDate } from '@/lib/utils'
+import { adminService } from '@/lib/api-services'
+import type { Product } from '@/types'
 import { PageHeader } from '@/components/shared/page-header'
 import { EmptyState } from '@/components/shared/empty-state'
 import { StatusBadge } from '@/components/shared/status-badge'
@@ -55,15 +56,18 @@ type ProductFormData = z.infer<typeof productSchema>
 
 export default function ProductsPage() {
   const { storeSlug } = useParams()
-  const store = getStoreBySlug(storeSlug ?? '')
-
-  const [products, setProducts] = useState<Product[]>(() =>
-    store ? getProductsByStore(store.id) : [],
-  )
-  const categories = useMemo<Category[]>(
-    () => (store ? getCategoriesByStore(store.id) : []),
-    [store],
-  )
+  const queryClient = useQueryClient()
+  const { data: productResult, isLoading: productsLoading } = useQuery({
+    queryKey: ['admin', storeSlug, 'products'],
+    queryFn: () => adminService.getProducts(storeSlug ?? ''),
+    enabled: Boolean(storeSlug),
+  })
+  const { data: categories = [], isLoading: categoriesLoading } = useQuery({
+    queryKey: ['admin', storeSlug, 'categories'],
+    queryFn: () => adminService.getCategories(storeSlug ?? ''),
+    enabled: Boolean(storeSlug),
+  })
+  const products = productResult?.data ?? []
 
   const [search, setSearch] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -120,57 +124,36 @@ export default function ProductsPage() {
   )
 
   const onSubmit = useCallback(
-    (data: ProductFormData) => {
-      const category = categories.find((c) => c.id === data.categoryId)
-      if (editingProduct) {
-        setProducts((prev) =>
-          prev.map((p) =>
-            p.id === editingProduct.id
-              ? {
-                  ...p,
-                  ...data,
-                  category,
-                  updatedAt: new Date().toISOString(),
-                }
-              : p,
-          ),
-        )
-        toast.success('Product updated successfully')
-      } else {
-        const colors = [
-          'oklch(0.7 0.15 45)',
-          'oklch(0.6 0.13 150)',
-          'oklch(0.75 0.12 75)',
-          'oklch(0.55 0.1 250)',
-        ]
-        const newProduct: Product = {
-          id: `prd_${generateId()}`,
-          storeId: store?.id ?? '',
-          categoryId: data.categoryId,
-          title: data.title,
-          description: data.description,
-          price: data.price,
-          images: [colors[Math.floor(Math.random() * colors.length)]],
-          category,
-          isActive: data.isActive,
-          stock: data.stock,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+    async (data: ProductFormData) => {
+      try {
+        const payload = { ...data, images: editingProduct?.images ?? ['oklch(0.7 0.15 45)'] }
+        if (editingProduct) {
+          await adminService.updateProduct(storeSlug ?? '', editingProduct.id, payload)
+          toast.success('Product updated successfully')
+        } else {
+          await adminService.createProduct(storeSlug ?? '', payload)
+          toast.success('Product created successfully')
         }
-        setProducts((prev) => [newProduct, ...prev])
-        toast.success('Product created successfully')
+        await queryClient.invalidateQueries({ queryKey: ['admin', storeSlug, 'products'] })
+        setDialogOpen(false)
+      } catch {
+        toast.error('Unable to save product')
       }
-      setDialogOpen(false)
     },
-    [editingProduct, categories, store?.id],
+    [editingProduct, queryClient, storeSlug],
   )
 
-  const handleDelete = useCallback(() => {
+  const handleDelete = useCallback(async () => {
     if (!deleteTarget) return
-    setProducts((prev) => prev.filter((p) => p.id !== deleteTarget.id))
-    toast.success('Product deleted successfully')
-    setDeleteTarget(null)
-  }, [deleteTarget])
+    try {
+      await adminService.deleteProduct(storeSlug ?? '', deleteTarget.id)
+      await queryClient.invalidateQueries({ queryKey: ['admin', storeSlug, 'products'] })
+      toast.success('Product deleted successfully')
+      setDeleteTarget(null)
+    } catch {
+      toast.error('Unable to delete product')
+    }
+  }, [deleteTarget, queryClient, storeSlug])
 
   const columns = useMemo<ColumnDef<Product>[]>(
     () => [
@@ -296,7 +279,7 @@ export default function ProductsPage() {
         }
       />
 
-      {filteredProducts.length === 0 ? (
+      {productsLoading || categoriesLoading ? <div className="py-12 text-center text-sm text-muted-foreground">Loading products...</div> : filteredProducts.length === 0 ? (
         <EmptyState
           icon={PackageOpen}
           title={search ? 'No products found' : 'No products yet'}

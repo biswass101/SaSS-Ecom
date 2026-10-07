@@ -9,12 +9,13 @@ import {
 import type { ColumnDef } from '@tanstack/react-table'
 import { Edit, Plus, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { PageHeader } from '@/components/shared/page-header'
 import { cn } from '@/lib/utils'
-import { mockPaymentChannels } from '@/mocks/data'
+import { managementService } from '@/lib/api-services'
 import type { PaymentChannel } from '@/types'
 
 const channelSchema = z.object({
@@ -27,7 +28,11 @@ const channelSchema = z.object({
 type ChannelFormValues = z.infer<typeof channelSchema>
 
 export default function PaymentChannelsPage() {
-  const [channels, setChannels] = useState<PaymentChannel[]>([...mockPaymentChannels])
+  const queryClient = useQueryClient()
+  const { data: channels = [], isLoading } = useQuery({
+    queryKey: ['management', 'payment-channels'],
+    queryFn: managementService.getPaymentChannels,
+  })
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
 
@@ -60,35 +65,39 @@ export default function PaymentChannelsPage() {
     setDialogOpen(true)
   }
 
-  function handleDelete(id: string) {
-    setChannels((prev) => prev.filter((c) => c.id !== id))
-    toast.success('Payment channel deleted')
-  }
-
-  function toggleActive(id: string) {
-    setChannels((prev) =>
-      prev.map((c) =>
-        c.id === id ? { ...c, isActive: !c.isActive } : c,
-      ),
-    )
-  }
-
-  function onSubmit(values: ChannelFormValues) {
-    if (editingId) {
-      setChannels((prev) =>
-        prev.map((c) => (c.id === editingId ? { ...c, ...values } : c)),
-      )
-      toast.success('Channel updated')
-    } else {
-      const newChannel: PaymentChannel = {
-        id: 'ch_' + Date.now(),
-        ...values,
-        createdAt: new Date().toISOString(),
-      }
-      setChannels((prev) => [...prev, newChannel])
-      toast.success('Channel created')
+  async function handleDelete(id: string) {
+    try {
+      await managementService.deletePaymentChannel(id)
+      await queryClient.invalidateQueries({ queryKey: ['management', 'payment-channels'] })
+      toast.success('Payment channel deleted')
+    } catch {
+      toast.error('Unable to delete payment channel')
     }
-    setDialogOpen(false)
+  }
+
+  async function toggleActive(channel: PaymentChannel) {
+    try {
+      await managementService.updatePaymentChannel(channel.id, { isActive: !channel.isActive })
+      await queryClient.invalidateQueries({ queryKey: ['management', 'payment-channels'] })
+    } catch {
+      toast.error('Unable to update payment channel')
+    }
+  }
+
+  async function onSubmit(values: ChannelFormValues) {
+    try {
+      if (editingId) {
+        await managementService.updatePaymentChannel(editingId, values)
+        toast.success('Channel updated')
+      } else {
+        await managementService.createPaymentChannel(values)
+        toast.success('Channel created')
+      }
+      await queryClient.invalidateQueries({ queryKey: ['management', 'payment-channels'] })
+      setDialogOpen(false)
+    } catch {
+      toast.error('Unable to save payment channel')
+    }
   }
 
   const columns: ColumnDef<PaymentChannel>[] = [
@@ -106,7 +115,7 @@ export default function PaymentChannelsPage() {
       cell: ({ row }) => (
         <button
           type="button"
-          onClick={() => toggleActive(row.original.id)}
+          onClick={() => toggleActive(row.original)}
           className={cn(
             'rounded-full px-3 py-1 text-xs font-medium transition-colors',
             row.original.isActive
@@ -179,7 +188,9 @@ export default function PaymentChannelsPage() {
             ))}
           </thead>
           <tbody>
-            {table.getRowModel().rows.length === 0 ? (
+            {isLoading ? (
+              <tr><td colSpan={columns.length} className="px-4 py-12 text-center text-sm text-muted-foreground">Loading payment channels...</td></tr>
+            ) : table.getRowModel().rows.length === 0 ? (
               <tr>
                 <td colSpan={columns.length} className="px-4 py-12 text-center text-sm text-muted-foreground">
                   No payment channels

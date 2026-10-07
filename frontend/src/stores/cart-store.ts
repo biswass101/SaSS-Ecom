@@ -2,6 +2,8 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { CartItem, Product } from '@/types'
 
+const EMPTY_CART_ITEMS: CartItem[] = []
+
 interface CartState {
   items: Record<string, CartItem[]>
   addItem: (storeSlug: string, product: Product, quantity?: number) => void
@@ -72,7 +74,7 @@ export const useCartStore = create<CartState>()(
           items: { ...state.items, [storeSlug]: [] },
         })),
 
-      getItems: (storeSlug) => get().items[storeSlug] ?? [],
+      getItems: (storeSlug) => get().items[storeSlug] ?? EMPTY_CART_ITEMS,
 
       getItemCount: (storeSlug) =>
         (get().items[storeSlug] ?? []).reduce((s, i) => s + i.quantity, 0),

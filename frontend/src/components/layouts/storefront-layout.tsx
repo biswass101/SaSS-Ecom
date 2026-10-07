@@ -8,24 +8,41 @@ import {
   Search,
   ShoppingBag,
   ShoppingCart,
+  Settings,
   Trash2,
   User,
   X,
+  LogOut,
 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, Outlet, useParams } from 'react-router'
+import { useQuery } from '@tanstack/react-query'
+import { useAuthStore } from '@/stores/auth-store'
+import { useLogout } from '@/features/auth/hooks/use-auth'
 import { ProductColorImage } from '@/components/shared/product-color-image'
 import { ThemeToggle } from '@/components/shared/theme-toggle'
 import { formatCurrency } from '@/lib/utils'
 import { useCartStore } from '@/stores/cart-store'
 import { useUiStore } from '@/stores/ui-store'
-import { getStoreBySlug, getCategoriesByStore } from '@/mocks/data'
+import { storefrontService } from '@/lib/api-services'
 
 export default function StorefrontLayout() {
   const { storeSlug = '' } = useParams()
-  const store = getStoreBySlug(storeSlug)
-  const categories = store ? getCategoriesByStore(store.id) : []
+  const user = useAuthStore((s) => s.user)
+  const handleLogout = useLogout()
+  const { data: store, isError: isStoreError } = useQuery({
+    queryKey: ['storefront', storeSlug, 'store'],
+    queryFn: () => storefrontService.getStore(storeSlug),
+    enabled: Boolean(storeSlug),
+  })
+  const { data: categories = [], isError: isCategoriesError } = useQuery({
+    queryKey: ['storefront', storeSlug, 'categories'],
+    queryFn: () => storefrontService.getCategories(storeSlug),
+    enabled: Boolean(storeSlug),
+  })
   const [searchOpen, setSearchOpen] = useState(false)
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
+  const isStoreOwner = user?.role === 'STORE_ADMIN'
 
   const cartDrawerOpen = useUiStore((s) => s.cartDrawerOpen)
   const setCartDrawerOpen = useUiStore((s) => s.setCartDrawerOpen)
@@ -38,8 +55,15 @@ export default function StorefrontLayout() {
   const updateQuantity = useCartStore((s) => s.updateQuantity)
   const removeItem = useCartStore((s) => s.removeItem)
 
+  const hasStoreError = isStoreError || isCategoriesError
+
   return (
     <div className="min-h-screen">
+      {hasStoreError && (
+        <div className="border-b border-destructive/20 bg-destructive/5 px-4 py-2 text-center text-xs text-destructive">
+          Store data could not be loaded. Check that the API is running and try refreshing.
+        </div>
+      )}
       {/* Desktop Navbar */}
       <header className="sticky top-0 z-40 hidden border-b bg-background/95 backdrop-blur-md md:block">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
@@ -99,6 +123,51 @@ export default function StorefrontLayout() {
               </button>
             )}
             <ThemeToggle />
+            {user ? (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                  className="inline-flex size-9 items-center justify-center rounded-lg transition-colors hover:bg-muted"
+                  title="Profile"
+                >
+                  <div className="flex size-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                    {user.name?.charAt(0) ?? 'U'}
+                  </div>
+                </button>
+                {profileDropdownOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setProfileDropdownOpen(false)}
+                    />
+                    <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-lg border bg-popover p-1 shadow-lg">
+                      {isStoreOwner && (
+                        <Link
+                          to={`/${storeSlug}/admin`}
+                          onClick={() => setProfileDropdownOpen(false)}
+                          className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground hover:bg-muted"
+                        >
+                          <Settings className="size-4" />
+                          Admin Panel
+                        </Link>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleLogout()
+                          setProfileDropdownOpen(false)
+                        }}
+                        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-destructive hover:bg-muted"
+                      >
+                        <LogOut className="size-4" />
+                        Sign out
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : null}
             <button
               type="button"
               onClick={() => setCartDrawerOpen(true)}
@@ -181,6 +250,16 @@ export default function StorefrontLayout() {
                   <ChevronRight className="size-4" />
                 </Link>
               ))}
+              {isStoreOwner && (
+                <Link
+                  to={`/${storeSlug}/admin`}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground mt-3 border-t pt-3"
+                >
+                  Admin Panel
+                  <Settings className="size-4" />
+                </Link>
+              )}
             </nav>
           </div>
         </>

@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useParams } from 'react-router'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -12,8 +13,8 @@ import {
 import type { ColumnDef } from '@tanstack/react-table'
 import { Plus, Pencil, Trash2, FolderOpen } from 'lucide-react'
 import { toast } from 'sonner'
-import { formatDate, generateId } from '@/lib/utils'
-import { getStoreBySlug, getCategoriesByStore } from '@/mocks/data'
+import { formatDate } from '@/lib/utils'
+import { adminService } from '@/lib/api-services'
 import type { Category } from '@/types'
 import { PageHeader } from '@/components/shared/page-header'
 import { EmptyState } from '@/components/shared/empty-state'
@@ -38,11 +39,12 @@ type CategoryFormData = z.infer<typeof categorySchema>
 
 export default function CategoriesPage() {
   const { storeSlug } = useParams()
-  const store = getStoreBySlug(storeSlug ?? '')
-
-  const [categories, setCategories] = useState<Category[]>(() =>
-    store ? getCategoriesByStore(store.id) : [],
-  )
+  const queryClient = useQueryClient()
+  const { data: categories = [], isLoading } = useQuery({
+    queryKey: ['admin', storeSlug, 'categories'],
+    queryFn: () => adminService.getCategories(storeSlug ?? ''),
+    enabled: Boolean(storeSlug),
+  })
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null)
@@ -72,40 +74,36 @@ export default function CategoriesPage() {
   )
 
   const onSubmit = useCallback(
-    (data: CategoryFormData) => {
-      if (editingCategory) {
-        setCategories((prev) =>
-          prev.map((c) =>
-            c.id === editingCategory.id
-              ? { ...c, title: data.title, updatedAt: new Date().toISOString() }
-              : c,
-          ),
-        )
-        toast.success('Category updated successfully')
-      } else {
-        const newCategory: Category = {
-          id: `cat_${generateId()}`,
-          storeId: store?.id ?? '',
-          title: data.title,
-          productCount: 0,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+    async (data: CategoryFormData) => {
+      try {
+        if (editingCategory) {
+          await adminService.updateCategory(storeSlug ?? '', editingCategory.id, data)
+          toast.success('Category updated successfully')
+        } else {
+          await adminService.createCategory(storeSlug ?? '', data)
+          toast.success('Category created successfully')
         }
-        setCategories((prev) => [newCategory, ...prev])
-        toast.success('Category created successfully')
+        await queryClient.invalidateQueries({ queryKey: ['admin', storeSlug, 'categories'] })
+        setDialogOpen(false)
+        reset({ title: '' })
+      } catch {
+        toast.error('Unable to save category')
       }
-      setDialogOpen(false)
-      reset({ title: '' })
     },
-    [editingCategory, store?.id, reset],
+    [editingCategory, queryClient, reset, storeSlug],
   )
 
-  const handleDelete = useCallback(() => {
+  const handleDelete = useCallback(async () => {
     if (!deleteTarget) return
-    setCategories((prev) => prev.filter((c) => c.id !== deleteTarget.id))
-    toast.success('Category deleted successfully')
-    setDeleteTarget(null)
-  }, [deleteTarget])
+    try {
+      await adminService.deleteCategory(storeSlug ?? '', deleteTarget.id)
+      await queryClient.invalidateQueries({ queryKey: ['admin', storeSlug, 'categories'] })
+      toast.success('Category deleted successfully')
+      setDeleteTarget(null)
+    } catch {
+      toast.error('Unable to delete category')
+    }
+  }, [deleteTarget, queryClient, storeSlug])
 
   const columns = useMemo<ColumnDef<Category>[]>(
     () => [
@@ -179,7 +177,7 @@ export default function CategoriesPage() {
         }
       />
 
-      {categories.length === 0 ? (
+      {isLoading ? <div className="py-12 text-center text-sm text-muted-foreground">Loading categories...</div> : categories.length === 0 ? (
         <EmptyState
           icon={FolderOpen}
           title="No categories yet"
