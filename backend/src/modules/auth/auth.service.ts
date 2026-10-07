@@ -26,7 +26,17 @@ export async function loginUser(email: string, password: string) {
 
   const token = signToken({ sub: user.id, email: user.email, role: user.role })
   logger.info({ userId: user.id, role: user.role }, 'Login successful')
-  return { token, user: formatUser(user) }
+
+  // For store admins, also return their store information
+  let store = null
+  if (user.role === 'STORE_ADMIN') {
+    const userStore = await prisma.store.findFirst({ where: { ownerId: user.id } })
+    if (userStore) {
+      store = { id: userStore.id, slug: userStore.slug, name: userStore.name }
+    }
+  }
+
+  return { token, user: formatUser(user), store }
 }
 
 export async function registerUser(name: string, email: string, password: string) {
@@ -41,7 +51,15 @@ export async function registerUser(name: string, email: string, password: string
 
   const token = signToken({ sub: user.id, email: user.email, role: user.role })
   logger.info({ userId: user.id }, 'Registration successful')
-  return { token, user: formatUser(user) }
+
+  // For new store admins, include their store if it was just created
+  let store = null
+  const userStore = await prisma.store.findFirst({ where: { ownerId: user.id } })
+  if (userStore) {
+    store = { id: userStore.id, slug: userStore.slug, name: userStore.name }
+  }
+
+  return { token, user: formatUser(user), store }
 }
 
 export async function storeLogin(storeSlug: string, email: string, password: string) {
