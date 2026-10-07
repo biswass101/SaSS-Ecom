@@ -64,7 +64,7 @@ subscriptionsRouter.patch(
 
 /**
  * @swagger
- * /management/payments/{paymentId}/verify:
+ * /management/subscriptions/payments/{paymentId}/verify:
  *   post:
  *     tags: [Management - Subscriptions]
  *     summary: Verify or reject a payment

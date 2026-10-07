@@ -6,12 +6,14 @@ import {
 } from '@tanstack/react-table'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { Check, X } from 'lucide-react'
 import { PageHeader } from '@/components/shared/page-header'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { cn, formatDate } from '@/lib/utils'
 import { managementService } from '@/lib/api-services'
-import type { Subscription } from '@/types'
+import type { Subscription, Payment } from '@/types'
 
 const statuses = ['All', 'ACTIVE', 'EXPIRED', 'CANCELLED'] as const
 
@@ -19,9 +21,11 @@ interface SubscriptionRow extends Subscription {
   storeName: string
   packageName: string
   paymentStatus: string
+  latestPayment?: Payment
 }
 
 export default function SubscriptionsPage() {
+  const queryClient = useQueryClient()
   const [statusFilter, setStatusFilter] = useState<string>('All')
   const { data: subscriptions = [], isLoading } = useQuery({
     queryKey: ['management', 'subscriptions'],
@@ -35,8 +39,19 @@ export default function SubscriptionsPage() {
       storeName: sub.store?.name ?? 'Unknown',
       packageName: sub.package?.name ?? 'Unknown',
       paymentStatus: latestPayment?.status ?? 'N/A',
+      latestPayment,
     }
   })
+
+  async function handlePaymentVerify(paymentId: string, action: 'VERIFIED' | 'REJECTED') {
+    try {
+      await managementService.verifyPayment(paymentId, action)
+      await queryClient.invalidateQueries({ queryKey: ['management', 'subscriptions'] })
+      toast.success(`Payment ${action.toLowerCase()}`)
+    } catch {
+      toast.error('Unable to update payment status')
+    }
+  }
 
   const filtered = useMemo(
     () => statusFilter === 'All' ? rows : rows.filter((r) => r.status === statusFilter),
@@ -63,8 +78,32 @@ export default function SubscriptionsPage() {
     },
     {
       id: 'payment',
-      header: 'Payment',
-      cell: ({ row }) => <StatusBadge status={row.original.paymentStatus} />,
+      header: 'Payment Status',
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <StatusBadge status={row.original.paymentStatus} />
+          {row.original.latestPayment && row.original.paymentStatus === 'PENDING' && (
+            <div className="flex gap-1">
+              <button
+                type="button"
+                onClick={() => handlePaymentVerify(row.original.latestPayment!.id, 'VERIFIED')}
+                className="rounded p-1 text-success hover:bg-success/10"
+                title="Verify payment"
+              >
+                <Check className="size-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePaymentVerify(row.original.latestPayment!.id, 'REJECTED')}
+                className="rounded p-1 text-destructive hover:bg-destructive/10"
+                title="Reject payment"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+          )}
+        </div>
+      ),
     },
   ]
 
