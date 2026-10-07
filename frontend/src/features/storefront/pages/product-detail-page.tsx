@@ -23,6 +23,7 @@ import type { Product } from '@/types'
 export default function ProductDetailPage() {
   const { storeSlug = '', productId = '' } = useParams()
   const [quantity, setQuantity] = useState(1)
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0)
 
   const { data: store, isLoading: isStoreLoading } = useQuery({
     queryKey: ['storefront', storeSlug, 'store'],
@@ -119,32 +120,35 @@ export default function ProductDetailPage() {
         <div className="space-y-4">
           <div className="overflow-hidden rounded-xl border">
             <ProductColorImage
-              color={product.images[0]}
+              color={product.images[selectedImageIndex] || product.images[0]}
               title={product.title}
               className="aspect-square w-full text-4xl"
             />
           </div>
-          {/* Image thumbnails (showing the same color as placeholder) */}
-          <div className="flex gap-2">
-            {[0, 1, 2].map((i) => (
-              <button
-                key={i}
-                type="button"
-                className={cn(
-                  'overflow-hidden rounded-lg border-2 transition-all',
-                  i === 0
-                    ? 'border-primary ring-2 ring-primary/20'
-                    : 'border-transparent opacity-60 hover:opacity-100',
-                )}
-              >
-                <ProductColorImage
-                  color={product.images[0]}
-                  title={product.title}
-                  className="size-16 sm:size-20"
-                />
-              </button>
-            ))}
-          </div>
+          {/* Image thumbnails */}
+          {product.images.length > 1 && (
+            <div className="flex gap-2">
+              {product.images.map((img, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setSelectedImageIndex(i)}
+                  className={cn(
+                    'overflow-hidden rounded-lg border-2 transition-all',
+                    selectedImageIndex === i
+                      ? 'border-primary ring-2 ring-primary/20'
+                      : 'border-transparent opacity-60 hover:opacity-100',
+                  )}
+                >
+                  <ProductColorImage
+                    color={img}
+                    title={product.title}
+                    className="size-16 sm:size-20"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Product Info */}
