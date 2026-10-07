@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { asyncHandler } from '../../../lib/async-handler'
 import { success } from '../../../lib/api-response'
+import { requireAuth, requireStoreAccess } from '../../../middlewares/auth'
 import * as service from './store.service'
 
 export const storefrontStoreRouter = Router({ mergeParams: true })
@@ -52,6 +53,8 @@ storefrontStoreRouter.get(
 
 storefrontStoreRouter.get(
   '/subscription-status',
+  requireAuth,
+  requireStoreAccess,
   asyncHandler(async (req, res) => {
     const status = await service.getSubscriptionStatus(String(req.params.storeSlug))
     success(res, status)

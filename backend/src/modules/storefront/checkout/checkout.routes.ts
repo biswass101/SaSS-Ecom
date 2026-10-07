@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { validate } from '../../../middlewares/validate'
+import { authLimiter } from '../../../middlewares/rate-limit'
 import { asyncHandler } from '../../../lib/async-handler'
 import { success } from '../../../lib/api-response'
 import { checkoutSchema, submitPaymentSchema } from './checkout.schema'
@@ -66,6 +67,7 @@ publicRouter.get(
 
 publicRouter.post(
   '/payments',
+  authLimiter,
   validate(submitPaymentSchema),
   asyncHandler(async (req, res) => {
     const payment = await service.submitPayment(req.body)

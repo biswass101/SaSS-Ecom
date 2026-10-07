@@ -58,6 +58,10 @@ export async function createProduct(storeSlug: string, data: {
   stock: number
 }) {
   const storeId = await resolveStoreId(storeSlug)
+  const category = await prisma.category.findUnique({ where: { id: data.categoryId } })
+  if (!category || category.storeId !== storeId) {
+    throw new AppError(403, 'Category does not belong to this store')
+  }
   logger.info({ storeSlug, title: data.title }, 'Creating product')
   return prisma.product.create({
     data: { ...data, storeId },

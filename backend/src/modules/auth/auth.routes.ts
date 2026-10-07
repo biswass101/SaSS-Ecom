@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { validate } from '../../middlewares/validate'
 import { requireAuth } from '../../middlewares/auth'
+import { loginLimiter, authLimiter } from '../../middlewares/rate-limit'
 import { asyncHandler } from '../../lib/async-handler'
 import { success } from '../../lib/api-response'
 import { loginSchema, registerSchema, storeLoginSchema } from './auth.schema'
@@ -32,6 +33,7 @@ export const authRouter = Router()
  */
 authRouter.post(
   '/login',
+  loginLimiter,
   validate(loginSchema),
   asyncHandler(async (req, res) => {
     const result = await authService.loginUser(req.body.email, req.body.password)
@@ -61,6 +63,7 @@ authRouter.post(
  */
 authRouter.post(
   '/register',
+  authLimiter,
   validate(registerSchema),
   asyncHandler(async (req, res) => {
     const result = await authService.registerUser(req.body.name, req.body.email, req.body.password)
@@ -90,6 +93,7 @@ authRouter.post(
  */
 authRouter.post(
   '/store-login',
+  loginLimiter,
   validate(storeLoginSchema),
   asyncHandler(async (req, res) => {
     const result = await authService.storeLogin(req.body.storeSlug, req.body.email, req.body.password)
@@ -99,6 +103,7 @@ authRouter.post(
 
 authRouter.post(
   '/create-store',
+  authLimiter,
   validate(createStoreSchema),
   asyncHandler(async (req, res) => {
     const result = await storeService.createStore(req.body)
