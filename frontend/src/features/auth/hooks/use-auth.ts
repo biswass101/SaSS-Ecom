@@ -11,29 +11,16 @@ export function useLogin() {
 
   return useMutation({
     mutationFn: (data: LoginFormValues) => authApi.login(data),
-    onSuccess: (res) => {
-      login(res.token, res.user)
-      toast.success('Welcome back!')
-      if (res.user.role === 'SUPER_ADMIN') {
-        navigate('/management')
-      } else {
-        navigate('/')
-      }
-    },
-  })
-}
-
-export function useStoreLogin() {
-  const login = useAuthStore((s) => s.login)
-  const navigate = useNavigate()
-
-  return useMutation({
-    mutationFn: (data: any) => authApi.storeLogin(data),
     onSuccess: (res: any) => {
+      // Handle both regular login and store login responses
       const store = res.store ? { id: res.store.id, slug: res.store.slug, name: res.store.name } : null
       login(res.token, res.user, store)
       toast.success('Welcome back!')
-      if (store) {
+
+      // Role-based routing
+      if (res.user.role === 'SUPER_ADMIN') {
+        navigate('/management')
+      } else if (res.user.role === 'STORE_ADMIN' && store?.slug) {
         navigate(`/${store.slug}/admin`)
       } else {
         navigate('/')

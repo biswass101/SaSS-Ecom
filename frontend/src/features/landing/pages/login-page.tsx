@@ -1,4 +1,3 @@
-import { Link } from 'react-router'
 import { Logo } from '@/components/shared/logo'
 import { LoginForm } from '@/features/auth/components/login-form'
 
@@ -16,7 +15,7 @@ export default function LoginPage() {
               Sign in to your account
             </h1>
             <p className="mt-1.5 text-sm text-muted-foreground">
-              Super admin &amp; management portal
+              Super admin, management, or store admin
             </p>
           </div>
 
@@ -30,20 +29,9 @@ export default function LoginPage() {
             </p>
             <p className="mt-1 text-center text-xs text-muted-foreground">
               <span className="font-mono">admin@storestack.com</span>{' '}
-              <span className="text-muted-foreground/60">(super admin)</span>
+              <span className="text-muted-foreground/60">(any role)</span>
             </p>
           </div>
-
-          {/* Store admin link */}
-          <p className="mt-4 text-center text-sm text-muted-foreground">
-            Store admin?{' '}
-            <Link
-              to="/store-login"
-              className="font-medium text-primary hover:underline"
-            >
-              Sign in to your store
-            </Link>
-          </p>
         </div>
       </div>
     </div>
