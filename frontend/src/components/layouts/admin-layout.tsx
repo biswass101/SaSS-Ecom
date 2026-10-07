@@ -9,9 +9,11 @@ import {
   ShoppingCart,
   X,
   BarChart2,
+  AlertTriangle,
 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, Outlet, useLocation, useParams } from 'react-router'
+import { useQuery } from '@tanstack/react-query'
 import { Logo } from '@/components/shared/logo'
 import { ThemeToggle } from '@/components/shared/theme-toggle'
 import { cn } from '@/lib/utils'
@@ -19,6 +21,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { useUiStore } from '@/stores/ui-store'
 import { useLogout } from '@/features/auth/hooks/use-auth'
 import { useIsMobile } from '@/hooks/use-media-query'
+import { storefrontService } from '@/lib/api-services'
 
 function getNavLinks(slug: string) {
   return [
@@ -39,6 +42,15 @@ export default function AdminLayout() {
   const sidebarOpen = useUiStore((s) => s.sidebarOpen)
   const setSidebarOpen = useUiStore((s) => s.setSidebarOpen)
   const [dropdownOpen, setDropdownOpen] = useState(false)
+
+  // Fetch store to check if it's active
+  const { data: store, isLoading: storeLoading } = useQuery({
+    queryKey: ['admin', storeSlug, 'store-status'],
+    queryFn: () => storefrontService.getStore(storeSlug),
+    enabled: Boolean(storeSlug),
+  })
+
+  const isStoreActive = store?.status === 'ACTIVE'
 
   const navLinks = getNavLinks(storeSlug)
 
@@ -185,8 +197,29 @@ export default function AdminLayout() {
           </div>
         </header>
 
+        {/* Store Inactive Alert */}
+        {!storeLoading && !isStoreActive && (
+          <div className="border-b border-destructive/20 bg-destructive/10 px-4 py-3 lg:px-6">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="size-5 text-destructive shrink-0" />
+              <div>
+                <p className="font-medium text-destructive">Store is Inactive</p>
+                <p className="text-sm text-destructive/80">
+                  This store is currently inactive. You can view it, but no activities or changes can be made until the store is activated by management.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
-          <Outlet />
+          {/* Disabled overlay for inactive store */}
+          {!storeLoading && !isStoreActive && (
+            <div className="fixed inset-0 z-30 bg-black/30 flex items-center justify-center pointer-events-none" />
+          )}
+          <div className={cn(!isStoreActive && 'opacity-50 pointer-events-none')}>
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>
