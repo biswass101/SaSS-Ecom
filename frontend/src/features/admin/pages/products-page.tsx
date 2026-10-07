@@ -11,8 +11,9 @@ import {
   flexRender,
 } from '@tanstack/react-table'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Plus, Pencil, Trash2, PackageOpen } from 'lucide-react'
+import { Plus, Pencil, Trash2, PackageOpen, Image as ImageIcon, X as XIcon, Upload } from 'lucide-react'
 import { toast } from 'sonner'
+import { useRef } from 'react'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { adminService } from '@/lib/api-services'
 import type { Product } from '@/types'
@@ -73,6 +74,9 @@ export default function ProductsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
+  const [productImages, setProductImages] = useState<string[]>(['oklch(0.7 0.15 45)'])
+  const [imageUrl, setImageUrl] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const {
     register,
@@ -94,8 +98,49 @@ export default function ProductsPage() {
     return products.filter((p) => p.title.toLowerCase().includes(q))
   }, [products, search])
 
+  const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files) return
+
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith('image/')) {
+        toast.error('Only image files are supported')
+        continue
+      }
+
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string
+        setProductImages((prev) => [...prev, base64])
+      }
+      reader.readAsDataURL(file)
+    }
+  }, [])
+
+  const handleAddImageUrl = useCallback(() => {
+    if (!imageUrl.trim()) {
+      toast.error('Please enter an image URL')
+      return
+    }
+
+    try {
+      new URL(imageUrl)
+      setProductImages((prev) => [...prev, imageUrl])
+      setImageUrl('')
+      toast.success('Image URL added')
+    } catch {
+      toast.error('Please enter a valid image URL')
+    }
+  }, [imageUrl])
+
+  const handleRemoveImage = useCallback((index: number) => {
+    setProductImages((prev) => prev.filter((_, i) => i !== index))
+  }, [])
+
   const openCreateDialog = useCallback(() => {
     setEditingProduct(null)
+    setProductImages(['oklch(0.7 0.15 45)'])
+    setImageUrl('')
     reset({
       title: '',
       description: '',
@@ -110,6 +155,8 @@ export default function ProductsPage() {
   const openEditDialog = useCallback(
     (product: Product) => {
       setEditingProduct(product)
+      setProductImages(product.images && product.images.length > 0 ? product.images : ['oklch(0.7 0.15 45)'])
+      setImageUrl('')
       reset({
         title: product.title,
         description: product.description,
@@ -125,8 +172,13 @@ export default function ProductsPage() {
 
   const onSubmit = useCallback(
     async (data: ProductFormData) => {
+      if (productImages.length === 0) {
+        toast.error('Please add at least one image')
+        return
+      }
+
       try {
-        const payload = { ...data, images: editingProduct?.images ?? ['oklch(0.7 0.15 45)'] }
+        const payload = { ...data, images: productImages }
         if (editingProduct) {
           await adminService.updateProduct(storeSlug ?? '', editingProduct.id, payload)
           toast.success('Product updated successfully')
@@ -140,7 +192,7 @@ export default function ProductsPage() {
         toast.error('Unable to save product')
       }
     },
-    [editingProduct, queryClient, storeSlug],
+    [editingProduct, queryClient, storeSlug, productImages],
   )
 
   const handleDelete = useCallback(async () => {
@@ -471,6 +523,77 @@ export default function ProductsPage() {
                   />
                 )}
               />
+            </div>
+
+            {/* Image Management */}
+            <div className="space-y-3 rounded-lg border p-4">
+              <Label>Product Images</Label>
+
+              {/* Image List */}
+              {productImages.length > 0 && (
+                <div className="grid grid-cols-4 gap-2">
+                  {productImages.map((img, idx) => (
+                    <div key={idx} className="group relative aspect-square overflow-hidden rounded-lg border bg-muted">
+                      {img.startsWith('data:') || img.startsWith('http') ? (
+                        <img
+                          src={img}
+                          alt={`Product ${idx + 1}`}
+                          className="size-full object-cover"
+                        />
+                      ) : (
+                        <div
+                          className="size-full"
+                          style={{ backgroundColor: img }}
+                        />
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveImage(idx)}
+                        className="absolute inset-0 hidden items-center justify-center bg-black/50 transition-all group-hover:flex"
+                      >
+                        <XIcon className="size-4 text-white" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Upload File */}
+              <div className="flex gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-dashed py-2 text-sm transition-colors hover:bg-muted"
+                >
+                  <Upload className="size-4" />
+                  Upload from device
+                </button>
+              </div>
+
+              {/* Add Image URL */}
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Paste image URL..."
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddImageUrl()}
+                />
+                <button
+                  type="button"
+                  onClick={handleAddImageUrl}
+                  className="rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground hover:bg-primary/90"
+                >
+                  <Plus className="size-4" />
+                </button>
+              </div>
             </div>
 
             <DialogFooter>

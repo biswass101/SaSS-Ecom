@@ -2,11 +2,13 @@ import { Link, useParams } from 'react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Printer, Mail, Phone, MapPin, Check, Clock, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
+import { useRef } from 'react'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils'
 import { adminService } from '@/lib/api-services'
 import type { OrderStatus } from '@/types'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { EmptyState } from '@/components/shared/empty-state'
+import { InvoiceTemplate } from '@/components/shared/invoice-template'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -34,11 +36,101 @@ function statusLabel(status: OrderStatus): string {
 export default function OrderDetailPage() {
   const { storeSlug, orderId } = useParams()
   const queryClient = useQueryClient()
+  const invoiceRef = useRef<HTMLDivElement>(null)
   const { data: order, isLoading } = useQuery({
     queryKey: ['admin', storeSlug, 'order', orderId],
     queryFn: () => adminService.getOrder(storeSlug ?? '', orderId ?? ''),
     enabled: Boolean(storeSlug && orderId),
   })
+
+  const handlePrintInvoice = () => {
+    if (!invoiceRef.current) return
+
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) {
+      toast.error('Failed to open print window')
+      return
+    }
+
+    const invoiceHtml = invoiceRef.current.innerHTML
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Invoice #${order?.orderNumber}</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.6; color: #1f2937; }
+            @media print {
+              body { background: white; }
+            }
+            .space-y-6 > * + * { margin-top: 1.5rem; }
+            .space-y-6 { display: flex; flex-direction: column; gap: 1.5rem; }
+            .space-y-2 { display: flex; flex-direction: column; gap: 0.5rem; }
+            .space-y-3 { display: flex; flex-direction: column; gap: 0.75rem; }
+            .border-b { border-bottom: 1px solid #d1d5db; }
+            .border-t { border-top: 1px solid #d1d5db; }
+            .pb-6 { padding-bottom: 1.5rem; }
+            .pt-6 { padding-top: 1.5rem; }
+            .pt-2 { padding-top: 0.5rem; }
+            .pt-4 { padding-top: 1rem; }
+            .p-8 { padding: 2rem; }
+            .mb-3 { margin-bottom: 0.75rem; }
+            .mb-2 { margin-bottom: 0.5rem; }
+            .gap-8 { gap: 2rem; }
+            .gap-4 { gap: 1rem; }
+            .gap-2 { gap: 0.5rem; }
+            .grid { display: grid; }
+            .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .flex { display: flex; }
+            .flex-start { justify-content: flex-start; }
+            .justify-between { justify-content: space-between; }
+            .justify-end { justify-content: flex-end; }
+            .items-start { align-items: flex-start; }
+            .text-right { text-align: right; }
+            .text-center { text-align: center; }
+            .text-left { text-align: left; }
+            .text-3xl { font-size: 1.875rem; }
+            .text-sm { font-size: 0.875rem; }
+            .text-xs { font-size: 0.75rem; }
+            .text-base { font-size: 1rem; }
+            .font-bold { font-weight: 700; }
+            .font-semibold { font-weight: 600; }
+            .font-medium { font-weight: 500; }
+            .tracking-tight { letter-spacing: -0.025em; }
+            .tracking-wider { letter-spacing: 0.05em; }
+            .uppercase { text-transform: uppercase; }
+            .capitalize { text-transform: capitalize; }
+            table { width: 100%; border-collapse: collapse; }
+            th { text-align: right; font-weight: 600; font-size: 0.75rem; padding: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; }
+            th:first-child { text-align: left; }
+            td { padding: 0.75rem 0.5rem; }
+            td:first-child { text-align: left; }
+            td { text-align: right; }
+            tbody tr { border-bottom: 1px solid #e5e7eb; }
+            tbody tr:last-child { border-bottom: none; }
+            .border-b-2 { border-bottom: 2px solid #d1d5db; }
+            .border-t-2 { border-top: 2px solid #d1d5db; }
+            .bg-white { background-color: white; }
+            .text-gray-500 { color: #6b7280; }
+            .text-gray-600 { color: #4b5563; }
+            .text-gray-700 { color: #374151; }
+            .text-gray-900 { color: #111827; }
+            .leading-relaxed { line-height: 1.625; }
+            w-64 { width: 16rem; }
+          </style>
+        </head>
+        <body>
+          ${invoiceHtml}
+          <script>
+            window.print();
+            window.onafterprint = () => window.close();
+          </script>
+        </body>
+      </html>
+    `)
+    printWindow.document.close()
+  }
 
   if (isLoading) {
     return <div className="py-12 text-center text-sm text-muted-foreground">Loading order...</div>
@@ -127,88 +219,22 @@ export default function OrderDetailPage() {
               Mark as {statusLabel(nextStatus)}
             </Button>
           )}
-          <Button variant="outline" onClick={() => window.print()}>
+          <Button variant="outline" onClick={handlePrintInvoice}>
             <Printer className="size-4" />
             Print Invoice
           </Button>
         </div>
       </div>
 
-      {/* Printable invoice section */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Items table & summary */}
-        <div className="space-y-6 lg:col-span-2">
-          <div className="rounded-xl border bg-card shadow-soft">
-            <div className="border-b px-6 py-4">
-              <h2 className="font-display text-lg font-semibold">
-                Order Items
-              </h2>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      Product
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      Qty
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      Unit Price
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      Total
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {order.items.map((item) => (
-                    <tr
-                      key={item.id}
-                      className="border-b last:border-0"
-                    >
-                      <td className="px-6 py-4 text-sm font-medium">
-                        {item.productTitle}
-                      </td>
-                      <td className="px-6 py-4 text-right text-sm text-muted-foreground">
-                        {item.quantity}
-                      </td>
-                      <td className="px-6 py-4 text-right text-sm text-muted-foreground">
-                        {formatCurrency(item.productPrice)}
-                      </td>
-                      <td className="px-6 py-4 text-right text-sm font-medium">
-                        {formatCurrency(item.total)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Order summary */}
-            <div className="border-t px-6 py-4">
-              <div className="ml-auto max-w-xs space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Subtotal</span>
-                  <span className="font-medium">
-                    {formatCurrency(order.subtotal)}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Shipping</span>
-                  <span className="text-success font-medium">Free</span>
-                </div>
-                <div className="flex justify-between border-t pt-2">
-                  <span className="font-semibold">Total</span>
-                  <span className="text-lg font-bold">
-                    {formatCurrency(order.total)}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
+      {/* Invoice Template (hidden, used for printing) */}
+      <div className="hidden">
+        <div ref={invoiceRef}>
+          <InvoiceTemplate order={order} />
         </div>
+      </div>
+
+      {/* Order Details Grid */}
+      <div className="grid gap-6 lg:grid-cols-3">
 
         {/* Sidebar */}
         <div className="space-y-6">
