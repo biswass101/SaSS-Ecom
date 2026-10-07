@@ -24,17 +24,19 @@ export async function loginUser(email: string, password: string) {
   const valid = await bcrypt.compare(password, user.passwordHash)
   if (!valid) throw new AppError(401, 'Invalid email or password')
 
-  const token = signToken({ sub: user.id, email: user.email, role: user.role })
-  logger.info({ userId: user.id, role: user.role }, 'Login successful')
-
-  // For store admins, also return their store information
+  // For store admins, include storeId in the token
+  let storeId: string | undefined
   let store = null
   if (user.role === 'STORE_ADMIN') {
     const userStore = await prisma.store.findFirst({ where: { ownerId: user.id } })
     if (userStore) {
+      storeId = userStore.id
       store = { id: userStore.id, slug: userStore.slug, name: userStore.name }
     }
   }
+
+  const token = signToken({ sub: user.id, email: user.email, role: user.role, storeId })
+  logger.info({ userId: user.id, role: user.role }, 'Login successful')
 
   return { token, user: formatUser(user), store }
 }
@@ -49,15 +51,17 @@ export async function registerUser(name: string, email: string, password: string
     data: { name, email, passwordHash, role: 'STORE_ADMIN' },
   })
 
-  const token = signToken({ sub: user.id, email: user.email, role: user.role })
-  logger.info({ userId: user.id }, 'Registration successful')
-
-  // For new store admins, include their store if it was just created
+  // For new store admins, include storeId in the token
+  let storeId: string | undefined
   let store = null
   const userStore = await prisma.store.findFirst({ where: { ownerId: user.id } })
   if (userStore) {
+    storeId = userStore.id
     store = { id: userStore.id, slug: userStore.slug, name: userStore.name }
   }
+
+  const token = signToken({ sub: user.id, email: user.email, role: user.role, storeId })
+  logger.info({ userId: user.id }, 'Registration successful')
 
   return { token, user: formatUser(user), store }
 }
