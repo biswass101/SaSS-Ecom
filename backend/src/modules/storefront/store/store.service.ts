@@ -25,3 +25,29 @@ export async function getStoreCategories(slug: string) {
     orderBy: { title: 'asc' },
   })
 }
+
+export async function getSubscriptionStatus(slug: string) {
+  logger.info({ slug }, 'Fetching subscription status for store')
+  const store = await prisma.store.findUnique({
+    where: { slug },
+    include: {
+      subscription: {
+        include: {
+          payments: { orderBy: { createdAt: 'desc' }, take: 1 },
+        },
+      },
+    },
+  })
+  if (!store) throw new AppError(404, 'Store not found')
+
+  const subscription = store.subscription
+  const latestPayment = subscription?.payments?.[0]
+
+  return {
+    storeId: store.id,
+    storeStatus: store.status,
+    subscriptionId: subscription?.id,
+    paymentStatus: latestPayment?.status ?? 'N/A',
+    isPaid: latestPayment?.status === 'VERIFIED',
+  }
+}

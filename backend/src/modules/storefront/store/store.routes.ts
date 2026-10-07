@@ -34,3 +34,18 @@ storefrontStoreRouter.get(
     success(res, categories)
   }),
 )
+
+/**
+ * @swagger
+ * /storefront/{storeSlug}/subscription-status:
+ *   get:
+ *     tags: [Storefront]
+ *     summary: Get subscription and payment status for store
+ */
+storefrontStoreRouter.get(
+  '/subscription-status',
+  asyncHandler(async (req, res) => {
+    const status = await service.getSubscriptionStatus(String(req.params.storeSlug))
+    success(res, status)
+  }),
+)
