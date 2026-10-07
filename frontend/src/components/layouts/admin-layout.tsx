@@ -203,9 +203,9 @@ export default function AdminLayout() {
             <div className="flex items-center gap-3">
               <AlertTriangle className="size-5 text-destructive shrink-0" />
               <div>
-                <p className="font-medium text-destructive">Store is Inactive</p>
+                <p className="font-medium text-destructive">Your Store is Inactive</p>
                 <p className="text-sm text-destructive/80">
-                  This store is currently inactive. You can view it, but no activities or changes can be made until the store is activated by management.
+                  Your store has been created but is not yet active. No changes or activities can be performed until activated by management. Please contact management to activate your store.
                 </p>
               </div>
             </div>
