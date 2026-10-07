@@ -11,8 +11,8 @@ import {
   BarChart2,
   AlertTriangle,
 } from 'lucide-react'
-import { useState } from 'react'
-import { Link, Outlet, useLocation, useParams } from 'react-router'
+import { useState, useEffect } from 'react'
+import { Link, Outlet, useLocation, useParams, useNavigate } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Logo } from '@/components/shared/logo'
 import { ThemeToggle } from '@/components/shared/theme-toggle'
@@ -36,6 +36,7 @@ function getNavLinks(slug: string) {
 export default function AdminLayout() {
   const { storeSlug = '' } = useParams()
   const { pathname } = useLocation()
+  const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
   const handleLogout = useLogout()
   const isMobile = useIsMobile()
@@ -43,7 +44,7 @@ export default function AdminLayout() {
   const setSidebarOpen = useUiStore((s) => s.setSidebarOpen)
   const [dropdownOpen, setDropdownOpen] = useState(false)
 
-  // Fetch subscription status to check if store is active (doesn't throw on inactive)
+  // Fetch subscription status to check if store is active and payment is verified
   const { data: storeStatus, isLoading: storeLoading } = useQuery({
     queryKey: ['admin', storeSlug, 'store-status'],
     queryFn: () => storefrontService.getSubscriptionStatus(storeSlug),
@@ -51,6 +52,14 @@ export default function AdminLayout() {
   })
 
   const isStoreActive = storeStatus?.storeStatus === 'ACTIVE'
+  const isPaymentVerified = storeStatus?.isPaid
+
+  // Redirect to payment page if payment not verified
+  useEffect(() => {
+    if (!storeLoading && storeStatus && !isPaymentVerified) {
+      navigate(`/payment?subscriptionId=${storeStatus.subscriptionId}`)
+    }
+  }, [storeLoading, storeStatus, isPaymentVerified, navigate])
 
   const navLinks = getNavLinks(storeSlug)
 
@@ -197,25 +206,14 @@ export default function AdminLayout() {
           </div>
         </header>
 
-        {/* Store Inactive Alert */}
-        {!storeLoading && !isStoreActive && (
-          <div className="border-b border-destructive/20 bg-destructive/10 px-4 py-3 lg:px-6">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="size-5 text-destructive shrink-0" />
-              <div>
-                <p className="font-medium text-destructive">Your Store is Inactive</p>
-                <p className="text-sm text-destructive/80">
-                  Your store has been created but is not yet active. No changes or activities can be performed until activated by management. Please contact management to activate your store.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
-          <div className={cn(!storeLoading && !isStoreActive && 'opacity-50 pointer-events-none select-none')}>
+          {storeLoading ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center text-muted-foreground">Loading...</div>
+            </div>
+          ) : (
             <Outlet />
-          </div>
+          )}
         </main>
       </div>
     </div>
