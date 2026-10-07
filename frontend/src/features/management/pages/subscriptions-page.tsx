@@ -45,10 +45,12 @@ export default function SubscriptionsPage() {
 
   async function handlePaymentVerify(paymentId: string, action: 'VERIFIED' | 'REJECTED') {
     try {
+      console.log('Verifying payment:', paymentId, action)
       await managementService.verifyPayment(paymentId, action)
       await queryClient.invalidateQueries({ queryKey: ['management', 'subscriptions'] })
       toast.success(`Payment ${action.toLowerCase()}`)
-    } catch {
+    } catch (error) {
+      console.error('Payment verification error:', error)
       toast.error('Unable to update payment status')
     }
   }
@@ -86,16 +88,22 @@ export default function SubscriptionsPage() {
             <div className="flex gap-1">
               <button
                 type="button"
-                onClick={() => handlePaymentVerify(row.original.latestPayment!.id, 'VERIFIED')}
-                className="rounded p-1 text-success hover:bg-success/10"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handlePaymentVerify(row.original.latestPayment!.id, 'VERIFIED')
+                }}
+                className="rounded p-1 text-success hover:bg-success/10 transition-colors"
                 title="Verify payment"
               >
                 <Check className="size-4" />
               </button>
               <button
                 type="button"
-                onClick={() => handlePaymentVerify(row.original.latestPayment!.id, 'REJECTED')}
-                className="rounded p-1 text-destructive hover:bg-destructive/10"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handlePaymentVerify(row.original.latestPayment!.id, 'REJECTED')
+                }}
+                className="rounded p-1 text-destructive hover:bg-destructive/10 transition-colors"
                 title="Reject payment"
               >
                 <X className="size-4" />

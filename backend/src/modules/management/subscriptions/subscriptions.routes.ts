@@ -3,7 +3,7 @@ import { requireAuth, requireRole } from '../../../middlewares/auth'
 import { validate } from '../../../middlewares/validate'
 import { asyncHandler } from '../../../lib/async-handler'
 import { success } from '../../../lib/api-response'
-import { updateSubscriptionSchema } from './subscriptions.schema'
+import { updateSubscriptionSchema, verifyPaymentSchema } from './subscriptions.schema'
 import * as service from './subscriptions.service'
 
 export const subscriptionsRouter = Router()
@@ -73,6 +73,7 @@ subscriptionsRouter.patch(
  */
 subscriptionsRouter.post(
   '/payments/:paymentId/verify',
+  validate(verifyPaymentSchema),
   asyncHandler(async (req, res) => {
     const action = req.body.action as 'VERIFIED' | 'REJECTED'
     const payment = await service.verifyPayment(String(req.params.paymentId), action)
