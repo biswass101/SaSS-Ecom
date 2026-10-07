@@ -4,9 +4,12 @@ import {
   Package,
   Store,
   Truck,
+  AlertCircle,
 } from 'lucide-react'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { Button } from '@/components/ui/button'
+import { useAuthStore } from '@/stores/auth-store'
+import { useState } from 'react'
 
 const features = [
   {
@@ -57,8 +60,61 @@ const steps = [
 ]
 
 export default function HomePage() {
+  const navigate = useNavigate()
+  const user = useAuthStore((s) => s.user)
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
+
+  const handleGetStarted = () => {
+    if (!isAuthenticated) {
+      // Not logged in - go to create store
+      navigate('/create-store')
+    } else if (user?.role === 'STORE_ADMIN') {
+      // Store owner - go to create another store or dashboard
+      navigate('/create-store')
+    } else if (user?.role === 'SUPER_ADMIN') {
+      // Management - show modal
+      setShowLogoutModal(true)
+    }
+  }
+
   return (
     <div>
+      {/* Logout Modal */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="mx-4 w-full max-w-sm rounded-xl border bg-background p-6 shadow-lg">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="rounded-lg bg-warning/10 p-2">
+                <AlertCircle className="size-5 text-warning" />
+              </div>
+              <h3 className="text-lg font-semibold">Sign Out Required</h3>
+            </div>
+            <p className="text-sm text-muted-foreground mb-6">
+              You're logged in as a management user. To create a new store account, you need to sign out first and register with different credentials.
+            </p>
+            <div className="flex flex-col gap-3">
+              <Button
+                onClick={() => {
+                  setShowLogoutModal(false)
+                  navigate('/login')
+                }}
+                className="w-full"
+              >
+                Sign Out & Create New Store
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowLogoutModal(false)}
+                className="w-full"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-hero">
         <div className="mx-auto max-w-6xl px-4 py-24 sm:py-32 lg:py-40">
@@ -73,11 +129,9 @@ export default function HomePage() {
               up your storefront, and start selling.
             </p>
             <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <Button asChild size="lg" className="w-full sm:w-auto">
-                <Link to="/create-store">
-                  Get Started
-                  <ArrowRight className="size-4" />
-                </Link>
+              <Button onClick={handleGetStarted} size="lg" className="w-full sm:w-auto">
+                Get Started
+                <ArrowRight className="size-4" />
               </Button>
               <Button
                 asChild
